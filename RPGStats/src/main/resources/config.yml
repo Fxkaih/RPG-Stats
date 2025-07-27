@@ -1,0 +1,107 @@
+debug-mode: false
+xp-settings:
+  combat:
+    base-xp:
+      ZOMBIE: 5.0
+      SKELETON: 5.0
+      SPIDER: 5.0
+      CREEPER: 7.0
+      ENDERMAN: 10.0
+      WITCH: 12.0
+      BLAZE: 8.0
+      PLAYER: 20.0
+      ENDER_DRAGON: 100.0
+      WITHER: 50.0
+    weapon-multipliers:
+      WOODEN: 0.8
+      STONE: 0.9
+      IRON: 1.0
+      GOLD: 1.1
+      DIAMOND: 1.3
+      NETHERITE: 1.5
+levels:
+  max-level: 100
+  min-level: 1
+  xp-base: 100
+  xp-increment: 50
+  xp-growth-type: "linear"
+  extra-point-interval: 5
+  points-per-level: 1
+
+attributes:
+  fuerza:
+    display-name: "Fuerza"
+    icon: IRON_SWORD
+    description: "Aumenta el daño físico"
+    max-value: 50
+    effects:
+      - type: DAMAGE
+        multiplier: 0.5
+  destreza:
+    display-name: "Destreza"
+    icon: FEATHER
+    description: "Aumenta la velocidad de movimiento"
+    max-value: 50
+    effects:
+      - type: MOVEMENT_SPEED
+        multiplier: 0.005
+        max-bonus: 0.3
+  constitucion:
+    display-name: "Constitución"
+    icon: APPLE
+    description: "Aumenta la vida máxima"
+    max-value: 50
+    effects:
+      - type: MAX_HEALTH
+        multiplier: 2.0
+
+attribute-points:
+  reset-cost: 1000
+  max-resets: 3
+
+classes:
+  default-class: "guerrero"
+  warrior:
+    display-name: "Guerrero"
+    description: "Especializado en combate cuerpo a cuerpo"
+    base-stats:
+      fuerza: 3
+      destreza: 1
+      constitucion: 2
+    level-bonuses:
+      - level: 5
+        stats:
+          fuerza: 2
+      - level: 10
+        abilities:
+          - "critical_strike"
+  archer:
+    display-name: "Arquero"
+    description: "Especializado en ataques a distancia"
+    base-stats:
+      fuerza: 1
+      destreza: 3
+      constitucion: 1
+
+abilities:
+  double_jump:
+    name: "Doble Salto"
+    type: "passive"
+    required-level: 5
+    effects:
+      JUMP_BOOST: 2
+    required-attributes:
+      agility: 10
+
+  fire_strike:
+    name: "Golpe de Fuego"
+    type: "active"
+    required-level: 10
+    cooldown: 30.0
+    mana-cost: 20
+    effects:
+      FIRE_RESISTANCE: 1
+      INCREASE_DAMAGE: 1
+    required-attributes:
+      strength: 15
+      intelligence: 10

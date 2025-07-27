@@ -1,0 +1,142 @@
+<html>
+<head>
+<title>config.yml</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #bcbec4;}
+.s4 { color: #5f826b; font-style: italic;}
+.s5 { color: #6aab73;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+config.yml</font>
+</center></td></tr></table>
+<pre><span class="s0">debug-mode</span><span class="s1">: </span><span class="s3">false</span>
+<span class="s4"># Valores iniciales de stats</span>
+<span class="s0">default-stats</span><span class="s1">:</span>
+  <span class="s0">fuerza</span><span class="s1">: </span><span class="s3">0</span>
+  <span class="s0">destreza</span><span class="s1">: </span><span class="s3">1</span>
+  <span class="s0">constitucion</span><span class="s1">: </span><span class="s3">0</span>
+
+<span class="s0">attributes</span><span class="s1">:</span>
+  <span class="s0">fuerza</span><span class="s1">:</span>
+    <span class="s0">display-name</span><span class="s1">: </span><span class="s5">&quot;Fuerza&quot;</span>
+    <span class="s0">icon</span><span class="s1">: </span><span class="s3">IRON_SWORD</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Aumenta el daño físico&quot;</span>
+    <span class="s0">max-value</span><span class="s1">: </span><span class="s3">50</span>
+    <span class="s0">effects</span><span class="s1">:</span>
+      <span class="s1">- </span><span class="s0">type</span><span class="s1">: </span><span class="s3">DAMAGE</span>
+        <span class="s0">multiplier</span><span class="s1">: </span><span class="s3">0.5</span>
+  <span class="s0">destreza</span><span class="s1">:</span>
+    <span class="s0">display-name</span><span class="s1">: </span><span class="s5">&quot;Destreza&quot;</span>
+    <span class="s0">icon</span><span class="s1">: </span><span class="s3">FEATHER</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Aumenta la velocidad de movimiento&quot;</span>
+    <span class="s0">max-value</span><span class="s1">: </span><span class="s3">50</span>
+    <span class="s0">effects</span><span class="s1">:</span>
+      <span class="s1">- </span><span class="s0">type</span><span class="s1">: </span><span class="s3">MOVEMENT_SPEED</span>
+        <span class="s0">multiplier</span><span class="s1">: </span><span class="s3">0.005</span>
+        <span class="s0">max-bonus</span><span class="s1">: </span><span class="s3">0.3</span>
+  <span class="s0">constitucion</span><span class="s1">:</span>
+    <span class="s0">display-name</span><span class="s1">: </span><span class="s5">&quot;Constitución&quot;</span>
+    <span class="s0">icon</span><span class="s1">: </span><span class="s3">APPLE</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Aumenta la vida máxima&quot;</span>
+    <span class="s0">max-value</span><span class="s1">: </span><span class="s3">50</span>
+    <span class="s0">effects</span><span class="s1">:</span>
+      <span class="s1">- </span><span class="s0">type</span><span class="s1">: </span><span class="s3">MAX_HEALTH</span>
+        <span class="s0">multiplier</span><span class="s1">: </span><span class="s3">2.0</span>
+
+<span class="s4"># Nuevas opciones recomendadas para GUI (no obligatorias)</span>
+<span class="s0">gui-settings</span><span class="s1">:</span>
+  <span class="s0">title</span><span class="s1">: </span><span class="s5">&quot;&amp;6Tus Estadísticas&quot;</span>
+  <span class="s0">auto-save-interval</span><span class="s1">: </span><span class="s3">300  </span><span class="s4"># Guardado automático cada 5 minutos (en segundos)</span>
+  <span class="s0">pending-points-max</span><span class="s1">: </span><span class="s3">5</span>
+
+<span class="s0">levels</span><span class="s1">:</span>
+  <span class="s0">max-level</span><span class="s1">: </span><span class="s3">100</span>
+  <span class="s0">min-level</span><span class="s1">: </span><span class="s3">1</span>
+  <span class="s0">xp-base</span><span class="s1">: </span><span class="s3">100</span>
+  <span class="s0">xp-increment</span><span class="s1">: </span><span class="s3">50</span>
+  <span class="s0">xp-growth-type</span><span class="s1">: </span><span class="s5">&quot;linear&quot; </span><span class="s4"># Opciones: linear, exponential, custom</span>
+  <span class="s0">points-per-level</span><span class="s1">: </span><span class="s3">1</span>
+  <span class="s0">extra-point-interval</span><span class="s1">: </span><span class="s3">5</span>
+
+  <span class="s0">xp-settings</span><span class="s1">:</span>
+    <span class="s4"># Experiencia por entidades</span>
+    <span class="s0">entity-xp</span><span class="s1">:</span>
+      <span class="s0">ZOMBIE</span><span class="s1">: </span><span class="s3">5.0</span>
+      <span class="s0">SKELETON</span><span class="s1">: </span><span class="s3">5.0</span>
+      <span class="s0">CREEPER</span><span class="s1">: </span><span class="s3">7.0</span>
+      <span class="s0">ENDERMAN</span><span class="s1">: </span><span class="s3">10.0</span>
+      <span class="s0">PLAYER</span><span class="s1">: </span><span class="s3">15.0</span>
+      <span class="s0">COW</span><span class="s1">: </span><span class="s3">2.0</span>
+
+    <span class="s4"># Experiencia por bloques</span>
+    <span class="s0">block-xp</span><span class="s1">:</span>
+      <span class="s0">DIAMOND_ORE</span><span class="s1">: </span><span class="s3">10.0</span>
+      <span class="s0">IRON_ORE</span><span class="s1">: </span><span class="s3">5.0</span>
+      <span class="s0">STONE</span><span class="s1">: </span><span class="s3">1.0</span>
+      <span class="s0">OAK_LOG</span><span class="s1">: </span><span class="s3">2.0</span>
+
+    <span class="s4"># Herramientas requeridas</span>
+    <span class="s0">required-tools</span><span class="s1">:</span>
+      <span class="s0">DIRT</span><span class="s1">: </span><span class="s3">SHOVEL</span>
+      <span class="s0">STONE</span><span class="s1">: </span><span class="s3">PICKAXE</span>
+      <span class="s0">OAK_LOG</span><span class="s1">: </span><span class="s3">AXE</span>
+    <span class="s4"># Efectos por nivel</span>
+    <span class="s0">sound-effects</span><span class="s1">:</span>
+      <span class="s0">level-up</span><span class="s1">: </span><span class="s5">&quot;ENTITY_PLAYER_LEVELUP&quot;</span>
+      <span class="s0">attribute-assigned</span><span class="s1">: </span><span class="s5">&quot;ENTITY_EXPERIENCE_ORB_PICKUP&quot;</span>
+
+    <span class="s0">visual-effects</span><span class="s1">:</span>
+      <span class="s0">particles</span><span class="s1">: </span><span class="s5">&quot;FIREWORKS_SPARK&quot;</span>
+      <span class="s0">particle-count</span><span class="s1">: </span><span class="s3">20</span>
+
+<span class="s4">#==============================================================</span>
+
+<span class="s0">classes</span><span class="s1">:</span>
+  <span class="s0">warrior</span><span class="s1">:</span>
+    <span class="s0">display-name</span><span class="s1">: </span><span class="s5">&quot;Guerrero&quot;</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Especializado en combate cuerpo a cuerpo&quot;</span>
+    <span class="s0">base-stats</span><span class="s1">:</span>
+      <span class="s0">fuerza</span><span class="s1">: </span><span class="s3">3</span>
+      <span class="s0">destreza</span><span class="s1">: </span><span class="s3">1</span>
+      <span class="s0">constitucion</span><span class="s1">: </span><span class="s3">2</span>
+    <span class="s0">level-bonuses</span><span class="s1">:</span>
+      <span class="s1">- </span><span class="s0">level</span><span class="s1">: </span><span class="s3">5</span>
+        <span class="s0">stats</span><span class="s1">:</span>
+          <span class="s0">fuerza</span><span class="s1">: </span><span class="s3">+2</span>
+      <span class="s1">- </span><span class="s0">level</span><span class="s1">: </span><span class="s3">10</span>
+        <span class="s0">abilities</span><span class="s1">:</span>
+          <span class="s1">- </span><span class="s5">&quot;critical_strike&quot;</span>
+  <span class="s0">archer</span><span class="s1">:</span>
+    <span class="s0">display-name</span><span class="s1">: </span><span class="s5">&quot;Arquero&quot;</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Especializado en ataques a distancia&quot;</span>
+    <span class="s0">base-stats</span><span class="s1">:</span>
+      <span class="s0">fuerza</span><span class="s1">: </span><span class="s3">1</span>
+      <span class="s0">destreza</span><span class="s1">: </span><span class="s3">3</span>
+      <span class="s0">constitucion</span><span class="s1">: </span><span class="s3">1</span>
+<span class="s4">#========================================</span>
+<span class="s0">abilities</span><span class="s1">:</span>
+  <span class="s0">critical_strike</span><span class="s1">:</span>
+    <span class="s0">name</span><span class="s1">: </span><span class="s5">&quot;Golpe Crítico&quot;</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Posibilidad de infligir daño adicional&quot;</span>
+    <span class="s0">type</span><span class="s1">: </span><span class="s5">&quot;passive&quot;</span>
+    <span class="s0">chance</span><span class="s1">: </span><span class="s3">0.15</span>
+    <span class="s0">multiplier</span><span class="s1">: </span><span class="s3">1.5</span>
+    <span class="s0">required-stat</span><span class="s1">:</span>
+      <span class="s0">name</span><span class="s1">: </span><span class="s5">&quot;fuerza&quot;</span>
+      <span class="s0">value</span><span class="s1">: </span><span class="s3">10</span>
+  <span class="s0">rapid_shot</span><span class="s1">:</span>
+    <span class="s0">name</span><span class="s1">: </span><span class="s5">&quot;Disparo Rápido&quot;</span>
+    <span class="s0">description</span><span class="s1">: </span><span class="s5">&quot;Aumenta velocidad de ataque con arco&quot;</span>
+    <span class="s0">type</span><span class="s1">: </span><span class="s5">&quot;active&quot;</span>
+    <span class="s0">cooldown</span><span class="s1">: </span><span class="s3">30</span>
+    <span class="s0">duration</span><span class="s1">: </span><span class="s3">10</span></pre>
+</body>
+</html>
