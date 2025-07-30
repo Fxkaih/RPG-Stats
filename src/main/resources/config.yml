@@ -1,0 +1,622 @@
+# Configuración general
+debug-mode: false
+
+# Configuración de XP
+xp-display:
+  update-interval: 1 # Segundos entre actualizaciones
+  progress-bar-length: 10 # Caracteres para la barra de progreso
+  colors:
+    filled: '&a' # Color de la parte llena
+    empty: '&7' # Color de la parte vacía
+
+messages:
+  xp-gain: "&a+{amount} XP &7({reason})"
+  level-up: "&e¡Nivel {level} alcanzado!"
+
+xp-settings:
+  combat:
+    base-xp:
+      ZOMBIE: 5.0
+      SKELETON: 5.0
+      SPIDER: 5.0
+      CREEPER: 7.0
+      ENDERMAN: 10.0
+      WITCH: 12.0
+      BLAZE: 8.0
+      PLAYER: 20.0
+      ENDER_DRAGON: 100.0
+      WITHER: 50.0
+
+    weapon-multipliers:
+      WOODEN: 0.8
+      STONE: 0.9
+      IRON: 1.0
+      GOLD: 1.1
+      DIAMOND: 1.3
+      NETHERITE: 1.5
+
+# Sistema de niveles
+levels:
+  max-level: 100
+  min-level: 1
+  xp-base: 100
+  xp-increment: 50
+  xp-growth-type: "linear"
+  extra-point-interval: 5
+  points-per-level: 1
+
+# Atributos
+attributes:
+  fuerza:
+    display-name: "Fuerza"
+    icon: IRON_SWORD
+    description: "Aumenta el daño físico"
+    max-value: 50
+    effects:
+      - type: DAMAGE
+        multiplier: 0.5
+
+  destreza:
+    display-name: "Destreza"
+    icon: FEATHER
+    description: "Aumenta la velocidad de movimiento"
+    max-value: 50
+    effects:
+      - type: MOVEMENT_SPEED
+        multiplier: 0.005
+        max-bonus: 0.3
+
+  constitucion:
+    display-name: "Constitución"
+    icon: APPLE
+    description: "Aumenta la vida máxima"
+    max-value: 50
+    effects:
+      - type: MAX_HEALTH
+        multiplier: 2.0
+        
+  inteligencia:
+    display-name: "Inteligencia"
+    icon: BOOK
+    description: "Aumenta el poder mágico y regeneración de maná"
+    max-value: 50
+    effects:
+      - type: MANA_REGEN
+        multiplier: 0.5
+      - type: SPELL_POWER
+        multiplier: 0.8
+        
+  sabiduria:
+    display-name: "Sabiduría"
+    icon: ENCHANTED_BOOK
+    description: "Aumenta el maná máximo y reduce cooldowns"
+    max-value: 50
+    effects:
+      - type: MAX_MANA
+        multiplier: 2.0
+      - type: COOLDOWN_REDUCTION
+        multiplier: 0.01
+        max-bonus: 0.5
+        
+  precision:
+    display-name: "Precisión"
+    icon: TARGET
+    description: "Aumenta la probabilidad de crítico a distancia"
+    max-value: 50
+    effects:
+      - type: CRITICAL_CHANCE
+        multiplier: 0.01
+      - type: RANGED_DAMAGE
+        multiplier: 0.4
+        
+  agilidad:
+    display-name: "Agilidad"
+    icon: LEATHER_BOOTS
+    description: "Aumenta velocidad de ataque y esquive"
+    max-value: 50
+    effects:
+      - type: ATTACK_SPEED
+        multiplier: 0.01
+      - type: DODGE_CHANCE
+        multiplier: 0.005
+        max-bonus: 0.25
+
+# Puntos de atributo
+attribute-points:
+  reset-cost: 1000
+  max-resets: 3
+
+# Clases
+classes:
+  default-class: "warrior"
+  warrior:
+    display-name: "Guerrero"
+    base-stats:
+      health: 20
+      mana: 10
+      attack: 8
+      defense: 6
+      speed: 4
+    attribute-bonuses:
+      fuerza: 3
+      constitucion: 2
+    xp-multipliers:
+      melee: 1.2
+    level-bonuses:
+      5:
+        health: 5
+        attack: 2
+      10:
+        defense: 3
+    abilities:
+      - power_strike
+      - provoke
+
+  wizard:
+    display-name: "Mago"
+    base-stats:
+      health: 12
+      mana: 30
+      attack: 3
+      defense: 4
+      speed: 5
+    attribute-bonuses:
+      inteligencia: 5
+    xp-multipliers:
+      magic: 1.5
+    abilities:
+      - fireball
+      - freeze
+
+  thief:
+    display-name: "Ladrón"
+    base-stats:
+      health: 15
+      mana: 15
+      attack: 6
+      defense: 4
+      speed: 8
+    attribute-bonuses:
+      destreza: 5
+    xp-multipliers:
+      stealth: 1.8
+    abilities:
+      - steal
+      - backstab
+
+  cleric:
+    display-name: "Clérigo"
+    base-stats:
+      health: 18
+      mana: 25
+      attack: 4
+      defense: 5
+      speed: 5
+    attribute-bonuses:
+      sabiduria: 4
+    xp-multipliers:
+      healing: 1.3
+    abilities:
+      - heal
+      - purify
+
+  archer:
+    display-name: "Arquero"
+    base-stats:
+      health: 16
+      mana: 15
+      attack: 7
+      defense: 5
+      speed: 7
+    attribute-bonuses:
+      precision: 4
+    xp-multipliers:
+      ranged: 1.4
+    abilities:
+      - multishot
+      - precise_shot
+      - rain_of_arrows
+      
+  druid:
+    display-name: "Druida"
+    base-stats:
+      health: 17
+      mana: 22
+      attack: 5
+      defense: 5
+      speed: 6
+    attribute-bonuses:
+      sabiduria: 3
+      inteligencia: 2
+      constitucion: 2
+    xp-multipliers:
+      nature: 1.5
+      healing: 1.3
+    level-bonuses:
+      5:
+        mana: 10
+      10:
+        health: 5
+    abilities:
+      - nature_bond
+      - shapeshifter
+      - healing_circle
+      
+  paladin:
+    display-name: "Paladín"
+    base-stats:
+      health: 22
+      mana: 15
+      attack: 6
+      defense: 8
+      speed: 4
+    attribute-bonuses:
+      fuerza: 2
+      constitucion: 3
+      sabiduria: 2
+    xp-multipliers:
+      divine: 1.4
+      melee: 1.1
+    level-bonuses:
+      5:
+        defense: 3
+      10:
+        health: 8
+    abilities:
+      - divine_shield
+      - holy_strike
+      - aura_of_protection
+      
+  assassin:
+    display-name: "Asesino"
+    base-stats:
+      health: 14
+      mana: 12
+      attack: 9
+      defense: 4
+      speed: 9
+    attribute-bonuses:
+      destreza: 4
+      agilidad: 3
+    xp-multipliers:
+      stealth: 1.7
+      melee: 1.2
+    level-bonuses:
+      5:
+        speed: 2
+      10:
+        attack: 4
+    abilities:
+      - shadow_step
+      - deadly_poison
+      - critical_strike
+
+# Habilidades
+abilities:
+  # Habilidades básicas existentes
+  double_jump:
+    name: "Doble Salto"
+    type: "passive"
+    required-level: 5
+    effects:
+      JUMP_BOOST: 2
+    required-attributes:
+      agilidad: 10
+
+  fire_strike:
+    name: "Golpe de Fuego"
+    type: "active"
+    required-level: 10
+    cooldown: 30.0
+    mana-cost: 20
+    effects:
+      FIRE_RESISTANCE: 1
+      INCREASE_DAMAGE: 1
+    required-attributes:
+      fuerza: 15
+      inteligencia: 10
+      
+  # Habilidades del Guerrero
+  power_strike:
+    name: "Golpe Poderoso"
+    type: "active"
+    required-level: 5
+    cooldown: 15.0
+    mana-cost: 15
+    effects:
+      INCREASE_DAMAGE: 2
+    required-attributes:
+      fuerza: 10
+
+  provoke:
+    name: "Provocar"
+    type: "active"
+    required-level: 8
+    cooldown: 25.0
+    mana-cost: 10
+    effects:
+      DAMAGE_RESISTANCE: 1
+      GLOWING: 1
+    required-attributes:
+      constitucion: 12
+      
+  battle_cry:
+    name: "Grito de Batalla"
+    type: "active"
+    required-level: 15
+    cooldown: 45.0
+    mana-cost: 25
+    effects:
+      INCREASE_DAMAGE: 2
+      SPEED: 1
+      DAMAGE_RESISTANCE: 1
+    required-attributes:
+      fuerza: 20
+
+  # Habilidades del Mago
+  fireball:
+    name: "Bola de Fuego"
+    type: "active"
+    required-level: 5
+    cooldown: 10.0
+    mana-cost: 20
+    effects:
+      FIRE_RESISTANCE: 1
+    required-attributes:
+      inteligencia: 15
+
+  freeze:
+    name: "Congelar"
+    type: "active"
+    required-level: 10
+    cooldown: 20.0
+    mana-cost: 25
+    effects:
+      SLOW: 3
+    required-attributes:
+      inteligencia: 18
+      
+  arcane_barrier:
+    name: "Barrera Arcana"
+    type: "active"
+    required-level: 15
+    cooldown: 30.0
+    mana-cost: 35
+    effects:
+      DAMAGE_RESISTANCE: 2
+      ABSORPTION: 2
+    required-attributes:
+      inteligencia: 20
+      sabiduria: 15
+
+  # Habilidades del Ladrón
+  steal:
+    name: "Robar"
+    type: "active"
+    required-level: 5
+    cooldown: 20.0
+    mana-cost: 10
+    effects:
+      SPEED: 2
+      INVISIBILITY: 1
+    required-attributes:
+      destreza: 12
+
+  backstab:
+    name: "Puñalada Trasera"
+    type: "active"
+    required-level: 10
+    cooldown: 15.0
+    mana-cost: 15
+    effects:
+      INCREASE_DAMAGE: 3
+    required-attributes:
+      destreza: 18
+      
+  smoke_bomb:
+    name: "Bomba de Humo"
+    type: "active"
+    required-level: 15
+    cooldown: 40.0
+    mana-cost: 25
+    effects:
+      INVISIBILITY: 1
+      SPEED: 2
+    required-attributes:
+      destreza: 20
+      agilidad: 15
+
+  # Habilidades del Clérigo
+  heal:
+    name: "Curación"
+    type: "active"
+    required-level: 5
+    cooldown: 20.0
+    mana-cost: 25
+    effects:
+      REGENERATION: 2
+    required-attributes:
+      sabiduria: 12
+
+  purify:
+    name: "Purificar"
+    type: "active"
+    required-level: 10
+    cooldown: 30.0
+    mana-cost: 20
+    effects:
+      FIRE_RESISTANCE: 1
+      POISON: 1
+    required-attributes:
+      sabiduria: 18
+      
+  divine_blessing:
+    name: "Bendición Divina"
+    type: "active"
+    required-level: 15
+    cooldown: 60.0
+    mana-cost: 40
+    effects:
+      REGENERATION: 2
+      ABSORPTION: 2
+      DAMAGE_RESISTANCE: 1
+    required-attributes:
+      sabiduria: 25
+
+  # Habilidades del Arquero
+  multishot:
+    name: "Disparo Múltiple"
+    type: "active"
+    required-level: 5
+    cooldown: 15.0
+    mana-cost: 15
+    effects:
+      SPEED: 1
+    required-attributes:
+      precision: 12
+      destreza: 10
+
+  precise_shot:
+    name: "Tiro Preciso"
+    type: "active"
+    required-level: 10
+    cooldown: 20.0
+    mana-cost: 20
+    effects:
+      NIGHT_VISION: 1
+      INCREASE_DAMAGE: 2
+    required-attributes:
+      precision: 18
+      
+  rain_of_arrows:
+    name: "Lluvia de Flechas"
+    type: "active"
+    required-level: 15
+    cooldown: 45.0
+    mana-cost: 35
+    effects:
+      INCREASE_DAMAGE: 2
+      SPEED: 1
+    required-attributes:
+      precision: 22
+      destreza: 15
+
+  # Habilidades del Druida
+  nature_bond:
+    name: "Vínculo Natural"
+    type: "passive"
+    required-level: 5
+    effects:
+      REGENERATION: 1
+      SATURATION: 1
+    required-attributes:
+      sabiduria: 10
+      constitucion: 8
+
+  shapeshifter:
+    name: "Cambiaforma"
+    type: "active"
+    required-level: 10
+    cooldown: 45.0
+    mana-cost: 30
+    effects:
+      SPEED: 2
+      INCREASE_DAMAGE: 2
+      DAMAGE_RESISTANCE: 1
+    required-attributes:
+      inteligencia: 15
+      constitucion: 12
+      
+  healing_circle:
+    name: "Círculo de Sanación"
+    type: "active"
+    required-level: 15
+    cooldown: 60.0
+    mana-cost: 45
+    effects:
+      REGENERATION: 2
+      SATURATION: 2
+      ABSORPTION: 1
+    required-attributes:
+      sabiduria: 20
+      inteligencia: 15
+
+  # Habilidades del Paladín
+  divine_shield:
+    name: "Escudo Divino"
+    type: "active"
+    required-level: 5
+    cooldown: 30.0
+    mana-cost: 25
+    effects:
+      DAMAGE_RESISTANCE: 3
+      ABSORPTION: 2
+    required-attributes:
+      constitucion: 15
+      sabiduria: 10
+
+  holy_strike:
+    name: "Golpe Santo"
+    type: "active"
+    required-level: 10
+    cooldown: 20.0
+    mana-cost: 20
+    effects:
+      INCREASE_DAMAGE: 2
+      GLOWING: 1
+    required-attributes:
+      fuerza: 12
+      sabiduria: 15
+      
+  aura_of_protection:
+    name: "Aura de Protección"
+    type: "active"
+    required-level: 15
+    cooldown: 60.0
+    mana-cost: 40
+    effects:
+      DAMAGE_RESISTANCE: 2
+      ABSORPTION: 2
+      REGENERATION: 1
+    required-attributes:
+      sabiduria: 20
+      constitucion: 18
+
+  # Habilidades del Asesino
+  shadow_step:
+    name: "Paso Sombrío"
+    type: "active"
+    required-level: 5
+    cooldown: 25.0
+    mana-cost: 15
+    effects:
+      INVISIBILITY: 1
+      SPEED: 2
+    required-attributes:
+      agilidad: 12
+      destreza: 10
+
+  deadly_poison:
+    name: "Veneno Mortal"
+    type: "active"
+    required-level: 10
+    cooldown: 20.0
+    mana-cost: 20
+    effects:
+      POISON: 2
+      INCREASE_DAMAGE: 1
+    required-attributes:
+      destreza: 18
+      
+  critical_strike:
+    name: "Golpe Crítico"
+    type: "active"
+    required-level: 15
+    cooldown: 30.0
+    mana-cost: 25
+    effects:
+      INCREASE_DAMAGE: 4
+      SPEED: 1
+    required-attributes:
+      destreza: 22
+      agilidad: 15
