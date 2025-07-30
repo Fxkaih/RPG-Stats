@@ -36,7 +36,7 @@ public class AttributeConfig {
     }
 
     public List<AttributeEffect> getEffects() {
-        return effects;
+        return new ArrayList<>(effects);
     }
 
     private List<AttributeEffect> loadEffects(ConfigurationSection effectsSection) {

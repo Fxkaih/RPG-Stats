@@ -25,7 +25,7 @@ public class AbilityManager {
                           @NotNull JavaPlugin plugin) {
         this.playerProgress = Objects.requireNonNull(playerProgress);
         this.plugin = Objects.requireNonNull(plugin);
-        this.loadAbilities(Objects.requireNonNull(config));
+        loadAbilities(Objects.requireNonNull(config));
     }
 
     private void loadAbilities(@NotNull FileConfiguration config) {
@@ -40,30 +40,23 @@ public class AbilityManager {
             if (abilitySection != null) {
                 Ability ability = new Ability(abilityId, abilitySection, playerProgress, plugin);
                 abilities.put(abilityId.toLowerCase(), ability);
-                plugin.getLogger().info(() -> "Habilidad cargada: " + ability.getName() +
-                        " (ID: " + ability.getId() + ")");
             }
         }
     }
 
     public boolean checkAbilityCondition(@NotNull Player player, @NotNull String abilityId) {
         Ability ability = getAbility(abilityId);
-        if (ability == null) {
-            plugin.getLogger().warning(() -> "Habilidad '" + abilityId + "' no encontrada");
-            return false;
-        }
+        if (ability == null) return false;
 
         if (isOnCooldown(player, ability)) {
             long remaining = getRemainingCooldown(player, ability);
             player.sendMessage(String.format("§e%s en cooldown (%d segundos restantes)",
-                    ability.getName(),
-                    TimeUnit.MILLISECONDS.toSeconds(remaining)));
+                    ability.getName(), TimeUnit.MILLISECONDS.toSeconds(remaining)));
             return false;
         }
 
         if (playerProgress.getCurrentMana(player) < ability.getManaCost()) {
-            player.sendMessage(String.format("§eNo tienes suficiente maná (%d requeridos)",
-                    ability.getManaCost()));
+            player.sendMessage(String.format("§eNo tienes suficiente maná (%d requeridos)", ability.getManaCost()));
             return false;
         }
 
@@ -72,35 +65,40 @@ public class AbilityManager {
 
     public void activateAbility(@NotNull Player player, @NotNull String abilityId) {
         Ability ability = getAbility(abilityId);
-        if (ability == null) return;
+        if (ability == null || !checkAbilityCondition(player, abilityId)) return;
 
-        if (!checkAbilityCondition(player, abilityId)) return;
-
-        // Consumir maná
-        playerProgress.setMana(player,
-                playerProgress.getCurrentMana(player) - ability.getManaCost());
+        int manaCost = calculateManaCost(player, ability);
+        if (!playerProgress.consumeMana(player, manaCost)) {
+            player.sendMessage("§eNo tienes suficiente maná");
+            return;
+        }
 
         ability.activate(player);
-
-        // Aplicar cooldown (ahora este método SÍ se usa)
         applyCooldown(player, ability);
+    }
+
+    private int calculateManaCost(Player player, Ability ability) {
+        int manaCost = ability.getManaCost();
+        String playerClass = playerProgress.getCurrentClass(player.getUniqueId());
+
+        if (playerClass != null) {
+            RPGClassManager.RPGClass rpgClass = playerProgress.getClassManager()
+                    .getRPGClass(playerClass);
+            if (rpgClass != null) {
+                manaCost *= (int) rpgClass.getManaCostMultiplier(ability.getType());
+            }
+        }
+        return manaCost;
     }
 
     public void applyPassiveAbilities(@NotNull Player player) {
         abilities.values().stream()
                 .filter(ability -> "passive".equalsIgnoreCase(ability.getType()))
-                .forEach(ability -> {
-                    plugin.getLogger().info(() -> "Aplicando habilidad pasiva: " + ability.getName());
-                    ability.applyPassiveEffects(player);
-                });
+                .forEach(ability -> ability.applyPassiveEffects(player));
     }
 
     public @NotNull Map<String, Ability> getAbilitiesMap() {
         return Collections.unmodifiableMap(abilities);
-    }
-
-    public @Nullable Ability getAbilityById(@NotNull String id) {
-        return abilities.get(id.toLowerCase());
     }
 
     private @Nullable Ability getAbility(@NotNull String abilityId) {
@@ -109,36 +107,24 @@ public class AbilityManager {
 
     private boolean isOnCooldown(Player player, Ability ability) {
         if (ability.getCooldown() <= 0) return false;
-
         Map<String, Long> playerCooldowns = cooldowns.get(player.getUniqueId());
-        if (playerCooldowns == null) return false;
-
-        Long expireTime = playerCooldowns.get(ability.getId());
-        return expireTime != null && expireTime > System.currentTimeMillis();
+        return playerCooldowns != null && playerCooldowns.getOrDefault(ability.getId(), 0L) > System.currentTimeMillis();
     }
 
     private long getRemainingCooldown(Player player, Ability ability) {
         Map<String, Long> playerCooldowns = cooldowns.get(player.getUniqueId());
         if (playerCooldowns == null) return 0;
-
-        Long expireTime = playerCooldowns.get(ability.getId());
-        if (expireTime == null) return 0;
-
-        return Math.max(0, expireTime - System.currentTimeMillis());
+        return Math.max(0, playerCooldowns.getOrDefault(ability.getId(), 0L) - System.currentTimeMillis());
     }
 
-    // Método renombrado de setCooldown a applyCooldown para mejor claridad
-    // y ahora SÍ está siendo utilizado
+    public void cleanUpPlayer(Player player) {
+        cooldowns.remove(player.getUniqueId());
+    }
+
     private void applyCooldown(Player player, Ability ability) {
         if (ability.getCooldown() > 0) {
             cooldowns.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>())
-                    .put(ability.getId(),
-                            System.currentTimeMillis() + (long)(ability.getCooldown() * 1000));
-            plugin.getLogger().info(() -> String.format(
-                    "Cooldown aplicado a %s: %s por %.1f segundos",
-                    player.getName(),
-                    ability.getName(),
-                    ability.getCooldown()));
+                    .put(ability.getId(), System.currentTimeMillis() + (long)(ability.getCooldown() * 1000));
         }
     }
 
@@ -158,15 +144,14 @@ public class AbilityManager {
                        @NotNull ConfigurationSection config,
                        @NotNull PlayerProgress playerProgress,
                        @NotNull JavaPlugin plugin) {
-            this.id = Objects.requireNonNull(id, "ID no puede ser nulo");
+            this.id = Objects.requireNonNull(id);
             this.name = config.getString("name", id);
             this.type = config.getString("type", "passive").toLowerCase();
             this.requiredLevel = Math.max(1, config.getInt("required-level", 1));
             this.cooldown = Math.max(0, config.getDouble("cooldown", 0.0));
             this.manaCost = Math.max(0, config.getInt("mana-cost", 0));
-            this.playerProgress = Objects.requireNonNull(playerProgress);
-            this.plugin = Objects.requireNonNull(plugin);
-
+            this.playerProgress = playerProgress;
+            this.plugin = plugin;
             this.requiredAttributes = loadAttributes(config);
             this.effects = loadEffects(config);
         }
@@ -190,8 +175,6 @@ public class AbilityManager {
                     PotionEffectType type = getModernPotionType(effect);
                     if (type != null) {
                         effects.put(type, Math.max(1, section.getInt(effect, 1)));
-                    } else {
-                        plugin.getLogger().warning(() -> "Tipo de efecto no válido: " + effect);
                     }
                 });
             }
@@ -199,9 +182,7 @@ public class AbilityManager {
         }
 
         private @Nullable PotionEffectType getModernPotionType(@NotNull String name) {
-            // Implementación moderna usando Registry
-            NamespacedKey key = NamespacedKey.minecraft(name.toLowerCase());
-            return Registry.POTION_EFFECT_TYPE.get(key);
+            return Registry.POTION_EFFECT_TYPE.get(NamespacedKey.minecraft(name.toLowerCase()));
         }
 
         public boolean canActivate(@NotNull Player player) {
@@ -216,13 +197,11 @@ public class AbilityManager {
                     return false;
                 }
             }
-
             return true;
         }
 
         public void activate(@NotNull Player player) {
             if (!canActivate(player)) return;
-
             applyEffectsModern(player);
             player.sendMessage("§a¡Habilidad " + name + " activada!");
             player.sendMessage(String.format("§7Cooldown: %.1fs | Coste de maná: %d", cooldown, manaCost));
@@ -234,24 +213,19 @@ public class AbilityManager {
             }
         }
 
-        // Método modernizado para aplicar efectos de poción
         private void applyEffectsModern(@NotNull Player player) {
             effects.forEach((type, amplifier) -> {
-                PotionEffect effect = new PotionEffect(
+                player.addPotionEffect(new PotionEffect(
                         type,
                         20 * 30, // 30 segundos
                         amplifier - 1,
                         true,
                         true,
                         true
-                );
-
-                // Aplicar efecto de forma moderna
-                player.addPotionEffect(effect);
+                ));
             });
         }
 
-        // Getters
         public @NotNull String getId() { return id; }
         public @NotNull String getName() { return name; }
         public @NotNull String getType() { return type; }

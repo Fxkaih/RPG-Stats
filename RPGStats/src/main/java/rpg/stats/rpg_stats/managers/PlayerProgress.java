@@ -1,28 +1,38 @@
 package rpg.stats.rpg_stats.managers;
 
-import org.bukkit.*;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.title.Title;
+import org.apache.maven.artifact.repository.metadata.Metadata;
+import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
-import org.bukkit.configuration.*;
+import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
-import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.jetbrains.annotations.*;
-import rpg.stats.rpg_stats.events.*;
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.*;
+import org.jetbrains.annotations.NotNull;
+import rpg.stats.rpg_stats.events.AttributeChangeEvent;
+import rpg.stats.rpg_stats.events.PlayerLevelUpEvent;
 
-public class PlayerProgress implements Listener {
+import java.io.File;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+public class PlayerProgress {
     private final JavaPlugin plugin;
     private final FileConfiguration config;
-    private final String dataFolderPath;
+    private XPDisplay xpDisplay;
     private final AttributeManager attributeManager;
     private final RPGClassManager classManager;
-    private final XPDisplay xpDisplay;
+    private final String dataFolderPath;
+    private final Map<UUID, PlayerData> playerDataMap = new ConcurrentHashMap<>();
+    private final Map<UUID, String> playerClasses = new HashMap<>();
 
-    // Configuración por defecto
     private int defaultLevel = 1;
     private float defaultXP = 0;
     private int defaultAvailablePoints = 0;
@@ -33,25 +43,24 @@ public class PlayerProgress implements Listener {
     private int defaultMaxMana = 100;
     private String defaultClass = "none";
 
-    // Datos de jugadores
-    private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
-
-    public PlayerProgress(@NotNull JavaPlugin plugin, @NotNull FileConfiguration config, @NotNull XPDisplay xpDisplay) {
+    public PlayerProgress(@NotNull JavaPlugin plugin, @NotNull FileConfiguration config, XPDisplay xpDisplay) {
         this.plugin = Objects.requireNonNull(plugin);
         this.config = Objects.requireNonNull(config);
-        this.xpDisplay = Objects.requireNonNull(xpDisplay);
         this.dataFolderPath = plugin.getDataFolder().getAbsolutePath() + File.separator + "playerdata" + File.separator;
-        this.attributeManager = new AttributeManager(config);
+        this.attributeManager = new AttributeManager(config, plugin);
         this.classManager = new RPGClassManager(config);
+        this.xpDisplay = xpDisplay;
 
         reloadConfig(config);
         ensureDataFolderExists();
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
-    // ========== DATOS DEL JUGADOR ==========
+    public void setXpDisplay(@NotNull XPDisplay xpDisplay) {
+        this.xpDisplay = Objects.requireNonNull(xpDisplay);
+    }
+
     public @NotNull PlayerData getPlayerData(@NotNull Player player) {
-        return playerData.computeIfAbsent(player.getUniqueId(), k -> createNewPlayerData());
+        return playerDataMap.computeIfAbsent(player.getUniqueId(), k -> createNewPlayerData());
     }
 
     private @NotNull PlayerData createNewPlayerData() {
@@ -68,66 +77,108 @@ public class PlayerProgress implements Listener {
         );
     }
 
-    // ========== PERSISTENCIA ==========
     public void savePlayerData(@NotNull Player player) {
         UUID uuid = player.getUniqueId();
         File file = new File(dataFolderPath + uuid + ".yml");
         YamlConfiguration data = new YamlConfiguration();
 
         PlayerData pd = getPlayerData(player);
+        ConfigurationSection section = data.createSection("player-data");
+
+        // Datos básicos
+        section.set("level", pd.getLevel());
+        section.set("xp", pd.getXp());
+        section.set("available-points", pd.getAvailablePoints());
+
+        // Atributos
+        ConfigurationSection attrs = section.createSection("attributes");
+        attrs.set("strength", pd.getStrength());
+        attrs.set("dexterity", pd.getDexterity());
+        attrs.set("constitution", pd.getConstitution());
+
+        // Maná
+        section.set("mana", pd.getMana());
+        section.set("max-mana", pd.getMaxMana());
+
+        // Clase
+        section.set("class", pd.getPlayerClass());
+
+        // Metadata adicional
+        if (!pd.getMetadata().isEmpty()) {
+            section.set("metadata", pd.getMetadata());
+        }
 
         try {
-            data.set("level", pd.getLevel());
-            data.set("xp", pd.getXp());
-            data.set("availablePoints", pd.getAvailablePoints());
-            data.set("class", pd.getPlayerClass());
-            data.set("mana", pd.getMana());
-            data.set("maxMana", pd.getMaxMana());
-
-            ConfigurationSection attributes = data.createSection("attributes");
-            attributes.set("fuerza", pd.getStrength());
-            attributes.set("destreza", pd.getDexterity());
-            attributes.set("constitucion", pd.getConstitution());
-
             data.save(file);
+            plugin.getLogger().info("[SAVE] Datos de " + player.getName() + " guardados");
         } catch (IOException e) {
             plugin.getLogger().severe("Error al guardar datos de " + player.getName() + ": " + e.getMessage());
         }
     }
 
     public void loadPlayerData(@NotNull Player player) {
-        UUID uuid = player.getUniqueId();
-        File file = new File(dataFolderPath + uuid + ".yml");
+        UUID playerId = player.getUniqueId();
+        File file = new File(dataFolderPath + playerId + ".yml");
 
-        if (file.exists()) {
-            try {
-                YamlConfiguration data = YamlConfiguration.loadConfiguration(file);
-                PlayerData pd = new PlayerData(
-                        data.getInt("level", defaultLevel),
-                        (float) data.getDouble("xp", defaultXP),
-                        data.getInt("availablePoints", defaultAvailablePoints),
-                        data.getInt("attributes.fuerza", defaultStrength),
-                        data.getInt("attributes.destreza", defaultDexterity),
-                        data.getInt("attributes.constitucion", defaultConstitution),
-                        data.getInt("mana", defaultMana),
-                        data.getInt("maxMana", defaultMaxMana),
-                        data.getString("class", defaultClass)
-                );
+        if (!file.exists()) {
+            handleNewPlayerSetup(player);
+            return;
+        }
 
-                playerData.put(uuid, pd);
-            } catch (Exception e) {
-                plugin.getLogger().warning("Error al cargar datos de " + player.getName() + ", usando valores por defecto");
-                playerData.put(uuid, createNewPlayerData());
+        try {
+            YamlConfiguration data = YamlConfiguration.loadConfiguration(file);
+            ConfigurationSection section = data.getConfigurationSection("player-data");
+
+            if (section == null) {
+                throw new IllegalStateException("Sección 'player-data' no encontrada");
             }
-        } else {
-            playerData.put(uuid, createNewPlayerData());
+
+            PlayerData pd = new PlayerData(
+                    section.getInt("level", defaultLevel),
+                    (float) section.getDouble("xp", defaultXP),
+                    section.getInt("available-points", defaultAvailablePoints),
+                    section.getInt("attributes.strength", defaultStrength),
+                    section.getInt("attributes.dexterity", defaultDexterity),
+                    section.getInt("attributes.constitution", defaultConstitution),
+                    section.getInt("mana", defaultMana),
+                    section.getInt("max-mana", defaultMaxMana),
+                    section.getString("class", defaultClass)
+            );
+
+            // Cargar metadata adicional
+            if (section.isConfigurationSection("metadata")) {
+                section.getConfigurationSection("metadata").getValues(false)
+                        .forEach((key, value) -> pd.setMetadata(key, (int) value));
+            }
+
+            playerDataMap.put(playerId, pd);
+            plugin.getLogger().info("[LOAD] Datos de " + player.getName() + " cargados");
+
+        } catch (Exception e) {
+            plugin.getLogger().warning("Error al cargar datos de " + player.getName() + ": " + e.getMessage());
+            playerDataMap.put(playerId, createNewPlayerData());
         }
 
         applyAllAttributeEffects(player);
-        xpDisplay.updateDisplay(player);
+        updatePlayerDisplay(player);
     }
 
-    // ========== SISTEMA DE NIVELES Y XP ==========
+    public void handleNewPlayerSetup(@NotNull Player player) {
+        assignDefaultClass(player);
+        player.sendMessage(Component.text("¡Bienvenido! Se te ha asignado una clase por defecto.", NamedTextColor.GREEN));
+        showAvailableClasses(player);
+
+        PlayerData pd = getPlayerData(player);
+        pd.setLevel(1);
+        pd.setXp(0);
+    }
+
+    public void updatePlayerDisplay(@NotNull Player player) {
+        if (xpDisplay != null) {
+            xpDisplay.updateDisplay(player);
+        }
+    }
+
     public void addXP(@NotNull Player player, @NotNull String actionType, float amount) {
         if (amount <= 0) return;
 
@@ -135,12 +186,15 @@ public class PlayerProgress implements Listener {
         float multiplier = getXPMultiplier(player, actionType);
         float finalXP = amount * multiplier;
 
-        pd.setXp(pd.getXp() + finalXP);
-        checkLevelUp(player);
-        xpDisplay.updateDisplay(player);
+        // Debug logging
+        plugin.getLogger().info("[XP] " + player.getName() + " ganó " + finalXP + " XP (" + actionType + ")");
 
-        if (plugin.getConfig().getBoolean("debug.xp-gain", false)) {
-            plugin.getLogger().info(player.getName() + " ganó " + finalXP + " XP (" + amount + " base * " + multiplier + " multiplicador)");
+        pd.setXp(pd.getXp() + finalXP);
+        updatePlayerDisplay(player);
+
+        // Verificar inmediatamente si subió de nivel
+        while (pd.getXp() >= getXPToNextLevel(player) && pd.getLevel() < config.getInt("levels.max-level", 100)) {
+            checkLevelUp(player);
         }
     }
 
@@ -148,72 +202,127 @@ public class PlayerProgress implements Listener {
         PlayerData pd = getPlayerData(player);
         float xpNeeded = getXPToNextLevel(player);
 
-        if (pd.getXp() >= xpNeeded && pd.getLevel() < config.getInt("levels.max-level", 100)) {
-            int newLevel = pd.getLevel() + 1;
+        if (pd.getXp() >= xpNeeded) {
+            int oldLevel = pd.getLevel();
+            int newLevel = oldLevel + 1;
+
             pd.setLevel(newLevel);
             pd.setXp(pd.getXp() - xpNeeded);
-            grantLevelUpPoints(player, newLevel);
 
-            Bukkit.getPluginManager().callEvent(new PlayerLevelUpEvent(player, newLevel - 1, newLevel));
-            xpDisplay.updateDisplay(player);
+            int pointsGained = calculatePointsGained(newLevel);
+            int manaIncrease = config.getInt("levels.mana-per-level", 5);
 
-            if (plugin.getConfig().getBoolean("debug.level-up", false)) {
-                plugin.getLogger().info(player.getName() + " subió al nivel " + newLevel);
-            }
+            pd.setAvailablePoints(pd.getAvailablePoints() + pointsGained);
+            pd.setMaxMana(pd.getMaxMana() + manaIncrease);
+            pd.setMana(pd.getMaxMana());
+
+            // Debug logging
+            plugin.getLogger().info("[LEVEL] " + player.getName() + " subió a nivel " + newLevel);
+
+            plugin.getServer().getPluginManager()
+                    .callEvent(new PlayerLevelUpEvent(player, oldLevel, newLevel, pointsGained, manaIncrease));
+
+            onLevelUp(player, newLevel, player.getUniqueId(), pointsGained, manaIncrease);
+            updatePlayerDisplay(player);
         }
+    }
+
+    private int calculatePointsGained(int newLevel) {
+        int basePoints = config.getInt("levels.points-per-level", 1);
+        int extraPoints = 0;
+
+        int interval = config.getInt("levels.extra-point-interval", 5);
+        if (interval > 0 && newLevel % interval == 0) {
+            extraPoints = config.getInt("levels.extra-point-amount", 1);
+        }
+        return basePoints + extraPoints;
     }
 
     public float getXPToNextLevel(@NotNull Player player) {
         int level = getPlayerData(player).getLevel();
-        return calculateXPForNextLevel(level);
+        int base = config.getInt("levels.xp-base", 100);
+        int increment = config.getInt("levels.xp-increment", 50);
+        float scaling = (float) config.getDouble("levels.xp-scaling", 1.1);
+
+        // Fórmula exponencial para requerimientos de XP
+        return base + (increment * level) * (float) Math.pow(scaling, level);
     }
+
 
     private float calculateXPForNextLevel(int level) {
         return config.getInt("levels.xp-base", 100) + (level * config.getInt("levels.xp-increment", 50));
     }
 
     private float getXPMultiplier(@NotNull Player player, @NotNull String actionType) {
+        PlayerData pd = getPlayerData(player);
         float multiplier = 1.0f;
-        String playerClass = getPlayerData(player).getPlayerClass();
 
-        // Multiplicador por atributo
+        // Multiplicadores por atributos
         switch (actionType.toLowerCase()) {
             case "mining":
-                multiplier *= (1 + (getPlayerData(player).getStrength() * 0.01f));
+                multiplier *= (1 + (pd.getStrength() * 0.02f));  // +2% por punto de fuerza
                 break;
             case "combat":
-                multiplier *= (1 + (getPlayerData(player).getDexterity() * 0.01f));
+                multiplier *= (1 + (pd.getDexterity() * 0.015f)); // +1.5% por punto de destreza
+                break;
+            case "farming":
+                multiplier *= (1 + (pd.getConstitution() * 0.01f)); // +1% por punto de constitución
                 break;
         }
 
         // Multiplicador por clase
-        if (playerClass != null) {
-            multiplier *= (float) config.getDouble("classes." + playerClass + ".xp-multipliers." + actionType, 1.0);
+        RPGClassManager.RPGClass rpgClass = classManager.getRPGClass(pd.getPlayerClass());
+        if (rpgClass != null) {
+            multiplier *= rpgClass.getXPMultiplier(actionType);
         }
 
-        return Math.max(0.1f, multiplier); // Mínimo 10% de ganancia
+        // Multiplicador global de configuración
+        multiplier *= (float) config.getDouble("xp-settings.global-multiplier", 1.0);
+
+        return Math.max(0.1f, Math.min(multiplier, 5.0f)); // Limitar entre 0.1x y 5.0x
     }
 
-    private void grantLevelUpPoints(@NotNull Player player, int newLevel) {
+    public void onLevelUp(@NotNull Player player, int newLevel, @NotNull UUID playerId,
+                          int pointsGained, int manaIncrease) {
+        if (!player.getUniqueId().equals(playerId)){
+            plugin.getLogger().warning("ID de jugador no coincide en onLevelUp");
+            return;
+        }
         PlayerData pd = getPlayerData(player);
-        int basePoints = config.getInt("levels.points-per-level", 1);
-        int extraPoints = 0;
+        pd.setAvailablePoints(pd.getAvailablePoints() + pointsGained);
+        pd.setMaxMana(pd.getMaxMana() + manaIncrease);
+        pd.setMana(pd.getMaxMana());
 
-        // Puntos extra cada ciertos niveles
-        int interval = config.getInt("levels.extra-point-interval", 5);
-        if (interval > 0 && newLevel % interval == 0) {
-            extraPoints = config.getInt("levels.extra-point-amount", 1);
+        player.showTitle(Title.title(
+                Component.text("¡Nivel " + newLevel + "!", NamedTextColor.GOLD),
+                Component.text("Felicidades", NamedTextColor.YELLOW),
+                Title.Times.times(
+                        Duration.ofMillis(500),
+                        Duration.ofMillis(3500),
+                        Duration.ofMillis(1000)
+                )));
+
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 0.5f);
+
+        if (newLevel % 5 == 0){
+            player.sendMessage(Component.text("¡Has alcanzado el nivel " + newLevel + " ¡Felicidades", NamedTextColor.GOLD));
         }
 
-        pd.setAvailablePoints(pd.getAvailablePoints() + basePoints + extraPoints);
-        pd.setMaxMana(pd.getMaxMana() + config.getInt("levels.mana-per-level", 5));
-        pd.setMana(pd.getMaxMana()); // Restaurar maná al máximo al subir de nivel
+        RPGClassManager classManager = getClassManager();
+        String playerClass = getCurrentClass(playerId);
+        if (playerClass != null) {
+            player.sendMessage(Component.text("§bBonificación de nivel para " + playerClass, NamedTextColor.AQUA));
+            classManager.checkLevelUpBonuses(player, this, newLevel);
+        }
 
         player.sendMessage(String.format("§a¡Subiste al nivel §e%d§a! §7(Puntos: §6+%d§7, Maná: §b+%d§7)",
-                newLevel, basePoints + extraPoints, config.getInt("levels.mana-per-level", 5)));
+                newLevel, pointsGained, manaIncrease));
+
+        if (getClassManager().hasDefaultClass() && playerClass == null) {
+            setPlayerClass(player, getClassManager().getDefaultClass());
+        }
     }
 
-    // ========== SISTEMA DE MANÁ ==========
     public int getCurrentMana(@NotNull Player player) {
         return getPlayerData(player).getMana();
     }
@@ -222,17 +331,36 @@ public class PlayerProgress implements Listener {
         return getPlayerData(player).getMaxMana();
     }
 
+    public void setMaxMana(@NotNull Player player, int maxMana) {
+        PlayerData pd = getPlayerData(player);
+        int oldMaxMana = pd.getMaxMana();
+
+        int newMaxMana = Math.max(10, maxMana);
+        pd.setMaxMana(newMaxMana);
+
+        if (pd.getMana() > newMaxMana) {
+            pd.setMana(newMaxMana);
+        }
+
+        if (oldMaxMana != newMaxMana) {
+            plugin.getServer().getPluginManager().callEvent(
+                    new AttributeChangeEvent(player, "max_mana", oldMaxMana, newMaxMana, false));
+        }
+
+        updatePlayerDisplay(player);
+    }
+
     public void setMana(@NotNull Player player, int amount) {
         PlayerData pd = getPlayerData(player);
         pd.setMana(Math.max(0, Math.min(amount, pd.getMaxMana())));
-        xpDisplay.updateDisplay(player); // Actualizar la barra de XP que ahora muestra maná
+        updatePlayerDisplay(player);
     }
 
     public boolean consumeMana(@NotNull Player player, int amount) {
         PlayerData pd = getPlayerData(player);
         if (pd.getMana() >= amount) {
             pd.setMana(pd.getMana() - amount);
-            xpDisplay.updateDisplay(player);
+            updatePlayerDisplay(player);
             return true;
         }
         return false;
@@ -241,21 +369,27 @@ public class PlayerProgress implements Listener {
     public void regenerateMana(@NotNull Player player, int amount) {
         PlayerData pd = getPlayerData(player);
         pd.setMana(Math.min(pd.getMana() + amount, pd.getMaxMana()));
-        xpDisplay.updateDisplay(player);
+        updatePlayerDisplay(player);
     }
 
-    // ========== SISTEMA DE ATRIBUTOS ==========
     public int getAttribute(@NotNull Player player, @NotNull String attribute) {
+        PlayerData pd = getPlayerData(player);
         return switch (attribute.toLowerCase()) {
-            case "fuerza" -> getPlayerData(player).getStrength();
-            case "destreza" -> getPlayerData(player).getDexterity();
-            case "constitucion" -> getPlayerData(player).getConstitution();
+            case "fuerza" -> pd.getStrength();
+            case "destreza" -> pd.getDexterity();
+            case "constitucion" -> pd.getConstitution();
+            case "inteligencia" -> pd.getMetadata("inteligencia", 1);
+            case "sabiduria" -> pd.getMetadata("sabiduria", 1);
+            case "precision" -> pd.getMetadata("precision", 1);
+            case "agilidad" -> pd.getMetadata("agilidad", 1);
             default -> 1;
         };
     }
 
-    public void setAttribute(@NotNull Player player, @NotNull String attribute, int value) {
+    public void setAttribute(@NotNull Player player, @NotNull String attribute,
+                             int value, boolean isLevelUp) {
         PlayerData pd = getPlayerData(player);
+        int oldValue = getAttribute(player, attribute);
         switch (attribute.toLowerCase()) {
             case "fuerza":
                 pd.setStrength(value);
@@ -269,7 +403,14 @@ public class PlayerProgress implements Listener {
                 pd.setConstitution(value);
                 applyConstitutionEffects(player, value);
                 break;
+            default:
+                pd.setMetadata(attribute, value);
+                attributeManager.applyAttributeEffects(player, attribute, value);
         }
+        plugin.getServer().getPluginManager().callEvent(
+                new AttributeChangeEvent(player, attribute, oldValue, value, isLevelUp));
+
+        updatePlayerDisplay(player);
     }
 
     public void addAttributePoint(@NotNull Player player, @NotNull String attribute) {
@@ -287,19 +428,24 @@ public class PlayerProgress implements Listener {
             return;
         }
 
-        Bukkit.getPluginManager().callEvent(new AttributeChangeEvent(player, attribute, currentValue, currentValue + 1));
-        setAttribute(player, attribute, currentValue + 1);
+        setAttribute(player, attribute, currentValue + 1, false);
         pd.setAvailablePoints(pd.getAvailablePoints() - 1);
-
         player.sendMessage("§a¡" + attribute.substring(0, 1).toUpperCase() + attribute.substring(1) +
                 " aumentado a §e" + (currentValue + 1) + "§a!");
     }
 
-    private void applyAllAttributeEffects(@NotNull Player player) {
+    public void applyAllAttributeEffects(@NotNull Player player) {
         PlayerData pd = getPlayerData(player);
-        applyStrengthEffects(player, pd.getStrength());
-        applyDexterityEffects(player, pd.getDexterity());
-        applyConstitutionEffects(player, pd.getConstitution());
+        setAttribute(player, "fuerza", pd.getStrength(), false);
+        setAttribute(player, "destreza", pd.getDexterity(), false);
+        setAttribute(player, "constitucion", pd.getConstitution(), false);
+        attributeManager.applyAttributeEffects(player, "fuerza", pd.getStrength());
+        attributeManager.applyAttributeEffects(player, "destreza", pd.getDexterity());
+        attributeManager.applyAttributeEffects(player, "constitucion", pd.getConstitution());
+        attributeManager.applyAttributeEffects(player, "inteligencia", pd.getMetadata("inteligencia", 1));
+        attributeManager.applyAttributeEffects(player, "sabiduria", pd.getMetadata("sabiduria", 1));
+        attributeManager.applyAttributeEffects(player, "precision", pd.getMetadata("precision", 1));
+        attributeManager.applyAttributeEffects(player, "agilidad", pd.getMetadata("agilidad", 1));
     }
 
     private void applyStrengthEffects(@NotNull Player player, int level) {
@@ -320,33 +466,181 @@ public class PlayerProgress implements Listener {
         }
     }
 
-    // ========== SISTEMA DE CLASES ==========
-    public String getPlayerClass(@NotNull Player player) {
-        return getPlayerData(player).getPlayerClass();
+    public String getCurrentClass(@NotNull UUID playerId) {
+        return playerClasses.get(playerId);
     }
 
-    public boolean setPlayerClass(@NotNull Player player, @NotNull String className) {
-        if (!classManager.isValidClass(className)) {
+    public boolean setPlayerClass(@NotNull Player player, @NotNull String classId) {
+        Objects.requireNonNull(player, "Player no puede ser nulo");
+        String lowerClassId = classId.toLowerCase();
+        RPGClassManager classManager = getClassManager();
+
+        if (!classManager.hasClass(lowerClassId)) {
+            player.sendMessage(Component.text("Clase no válida: " + classId, NamedTextColor.RED));
             return false;
         }
 
         PlayerData pd = getPlayerData(player);
-        pd.setPlayerClass(className);
+        String currentClass = pd.getPlayerClass();
 
-        // Aplicar bonificaciones de clase
-        int strengthBonus = config.getInt("classes." + className + ".attribute-bonuses.fuerza", 0);
-        int dexterityBonus = config.getInt("classes." + className + ".attribute-bonuses.destreza", 0);
-        int constitutionBonus = config.getInt("classes." + className + ".attribute-bonuses.constitucion", 0);
+        if (lowerClassId.equals(currentClass)) {
+            player.sendMessage(Component.text("Ya tienes esta clase asignada", NamedTextColor.YELLOW));
+            return true;
+        }
 
-        pd.setStrength(pd.getStrength() + strengthBonus);
-        pd.setDexterity(pd.getDexterity() + dexterityBonus);
-        pd.setConstitution(pd.getConstitution() + constitutionBonus);
+        if (classManager.isValidClass(currentClass)) {
+            removeClassBonuses(player, currentClass);
+        }
 
+        pd.setPlayerClass(lowerClassId);
+        playerClasses.put(player.getUniqueId(), lowerClassId);
+
+        classManager.sendClassBenefitsMessage(player, lowerClassId);
+        applyClassBonuses(player, lowerClassId);
+
+        player.showTitle(Title.title(
+                Component.text("Nueva Clase", NamedTextColor.YELLOW),
+                Component.text(classManager.getClassDisplayName(lowerClassId), NamedTextColor.GREEN),
+                Title.Times.times(
+                        Duration.ofMillis(500),
+                        Duration.ofMillis(3500),
+                        Duration.ofMillis(1000)
+                )));
+
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
         applyAllAttributeEffects(player);
+
         return true;
     }
 
-    // ========== MÉTODOS AUXILIARES ==========
+    public void assignDefaultClass(@NotNull Player player) {
+        RPGClassManager classManager = getClassManager();
+        if (classManager.hasDefaultClass()) {
+            boolean success = setPlayerClass(player, classManager.getDefaultClass());
+            if (!success) {
+                player.sendMessage(Component.text("No se pudo asignar la clase por defecto", NamedTextColor.RED));
+            }
+        }
+    }
+
+    private void applyClassBonuses(@NotNull Player player, @NotNull String className) {
+        RPGClassManager.RPGClass rpgClass = classManager.getRPGClass(className);
+        if (rpgClass != null) {
+            rpgClass.getAttributeBonuses().forEach((attr, bonus) -> {
+                int current = getAttribute(player, attr);
+                setAttribute(player, attr, current + bonus, false);
+            });
+            player.sendMessage(Component.text("§aBonificaciones de " + className + " aplicadas"));
+            rpgClass.applyEffects(player, this);
+        }
+    }
+
+    private void removeClassBonuses(@NotNull Player player, @NotNull String className) {
+        RPGClassManager.RPGClass rpgClass = classManager.getRPGClass(className);
+        if (rpgClass != null) {
+            rpgClass.getAttributeBonuses().forEach((attr, bonus) -> {
+                int current = getAttribute(player, attr);
+                setAttribute(player, attr, current - bonus, false);
+            });
+        }
+    }
+
+    public List<String> getAvailableClasses(@NotNull Player player) {
+        Objects.requireNonNull(player, "El jugador no puede ser nulo");
+        return classManager.getAvailableClasses().keySet().stream()
+                .filter(classId -> player.hasPermission("rpgstats.class." + classId) ||
+                        classId.equals(classManager.getDefaultClass()))
+                .collect(Collectors.toList());
+    }
+
+    public void showAvailableClasses(@NotNull Player player) {
+        List<String> availableClasses = getAvailableClasses(player);
+        if (availableClasses.isEmpty()) {
+            player.sendMessage(Component.text("No hay clases disponibles", NamedTextColor.RED));
+            return;
+        }
+
+        Component message = Component.text("Clases disponibles: ", NamedTextColor.GOLD)
+                .append(Component.text(String.join(", ", availableClasses), NamedTextColor.GREEN));
+        player.sendMessage(message);
+    }
+
+    public void showDetailedStats(@NotNull Player player) {
+        PlayerData pd = getPlayerData(player);
+
+        player.sendMessage("§6=== ESTADÍSTICAS DETALLADAS ===");
+        player.sendMessage(String.format("§eNivel: §a%d §7(%.1f/%.1f XP)",
+                pd.getLevel(), pd.getXp(), getXPToNextLevel(player)));
+        player.sendMessage(String.format("§ePuntos disponibles: §a%d", pd.getAvailablePoints()));
+        player.sendMessage(String.format("§eManá: §b%d/%d", pd.getMana(), pd.getMaxMana()));
+
+        player.sendMessage("§6Atributos:");
+        player.sendMessage(String.format("§e- Fuerza: §a%d §7(Bonus: +%.1f daño)",
+                pd.getStrength(), pd.getStrength() * 0.5));
+        player.sendMessage(String.format("§e- Destreza: §a%d §7(Velocidad: +%.1f%%)",
+                pd.getDexterity(), pd.getDexterity() * 1.0));
+        player.sendMessage(String.format("§e- Constitución: §a%d §7(Vida: +%.1f corazones)",
+                pd.getConstitution(), pd.getConstitution() * 1.0));
+        player.sendMessage(String.format("§e- Inteligencia: §a%d §7(Maná: +%.1f regen, +%.1f%% poder mágico)",
+                pd.getMetadata("inteligencia", 1),
+                pd.getMetadata("inteligencia", 1) * 0.5,
+                pd.getMetadata("inteligencia", 1) * 8.0));
+        player.sendMessage(String.format("§e- Sabiduría: §a%d §7(Maná: +%d, Reducción cooldown: %.1f%%)",
+                pd.getMetadata("sabiduria", 1),
+                pd.getMetadata("sabiduria", 1) * 2,
+                Math.min(50, pd.getMetadata("sabiduria", 1) * 1.0)));
+        player.sendMessage(String.format("§e- Precisión: §a%d §7(Crítico: %.1f%%, Daño a distancia: +%.1f%%)",
+                pd.getMetadata("precision", 1),
+                Math.min(50, pd.getMetadata("precision", 1) * 1.0),
+                pd.getMetadata("precision", 1) * 4.0));
+        player.sendMessage(String.format("§e- Agilidad: §a%d §7(Velocidad ataque: +%.1f%%, Esquive: %.1f%%)",
+                pd.getMetadata("agilidad", 1),
+                pd.getMetadata("agilidad", 1) * 1.0,
+                Math.min(25, pd.getMetadata("agilidad", 1) * 0.5)));
+
+        if (playerClasses.containsKey(player.getUniqueId())) {
+            player.sendMessage(String.format("§6Clase: §e%s",
+                    classManager.getClassDisplayName(pd.getPlayerClass())));
+        }
+    }
+
+    public void refreshPlayerDisplay(@NotNull Player player) {
+        updatePlayerDisplay(player);
+        applyAllAttributeEffects(player);
+    }
+
+    public void resetPlayerStats(@NotNull Player player) {
+        attributeManager.resetPlayerAttributes(player);
+        PlayerData pd = getPlayerData(player);
+        String currentClass = pd.getPlayerClass();
+
+        resetPlayerData(pd);
+        setMaxMana(player, defaultMaxMana);
+
+        if (classManager.isValidClass(currentClass)) {
+            setPlayerClass(player, currentClass);
+        } else {
+            pd.setPlayerClass(defaultClass);
+        }
+
+        applyAllAttributeEffects(player);
+        updatePlayerDisplay(player);
+        savePlayerData(player);
+
+        player.sendMessage("§a¡Tus estadísticas han sido reiniciadas!");
+    }
+
+    private void resetPlayerData(PlayerData pd) {
+        pd.setLevel(defaultLevel);
+        pd.setXp(defaultXP);
+        pd.setAvailablePoints(defaultAvailablePoints);
+        pd.setStrength(defaultStrength);
+        pd.setDexterity(defaultDexterity);
+        pd.setConstitution(defaultConstitution);
+        pd.setMaxMana(defaultMaxMana);
+        pd.setMana(defaultMana);
+    }
+
     private void ensureDataFolderExists() {
         File folder = new File(dataFolderPath);
         if (!folder.exists() && !folder.mkdirs()) {
@@ -371,16 +665,18 @@ public class PlayerProgress implements Listener {
             }
 
             this.defaultClass = defaults.getString("class", "none");
+
+            classManager.reload((FileConfiguration) config);
         }
     }
 
-    // ========== GETTERS BÁSICOS ==========
     public int getLevel(@NotNull Player player) {
         return getPlayerData(player).getLevel();
     }
 
     public void setLevel(@NotNull Player player, int level) {
         getPlayerData(player).setLevel(level);
+        updatePlayerDisplay(player);
     }
 
     public float getCurrentXP(@NotNull Player player) {
@@ -389,6 +685,7 @@ public class PlayerProgress implements Listener {
 
     public void setXP(@NotNull Player player, float xp) {
         getPlayerData(player).setXp(xp);
+        updatePlayerDisplay(player);
     }
 
     public int getAvailablePoints(@NotNull Player player) {
@@ -397,62 +694,14 @@ public class PlayerProgress implements Listener {
 
     public void setAvailablePoints(@NotNull Player player, int points) {
         getPlayerData(player).setAvailablePoints(points);
+        updatePlayerDisplay(player);
     }
 
     public AttributeManager getAttributeManager() {
         return attributeManager;
     }
 
-
-    // ========== CLASE PlayerData INTERNA ==========
-    public static class PlayerData {
-        private int level;
-        private float xp;
-        private int availablePoints;
-        private int strength;
-        private int dexterity;
-        private int constitution;
-        private int mana;
-        private int maxMana;
-        private String playerClass;
-
-        public PlayerData(int level, float xp, int availablePoints,
-                          int strength, int dexterity, int constitution,
-                          int mana, int maxMana, String playerClass) {
-            this.level = level;
-            this.xp = xp;
-            this.availablePoints = availablePoints;
-            this.strength = strength;
-            this.dexterity = dexterity;
-            this.constitution = constitution;
-            this.mana = mana;
-            this.maxMana = maxMana;
-            this.playerClass = playerClass;
-        }
-
-        // Getters
-        public int getLevel() { return level; }
-        public float getXp() { return xp; }
-        public int getAvailablePoints() { return availablePoints; }
-        public int getStrength() { return strength; }
-        public int getDexterity() { return dexterity; }
-        public int getConstitution() { return constitution; }
-        public int getMana() { return mana; }
-        public int getMaxMana() { return maxMana; }
-        public String getPlayerClass() { return playerClass; }
-
-        // Setters con validación
-        public void setLevel(int level) { this.level = Math.max(1, level); }
-        public void setXp(float xp) { this.xp = Math.max(0, xp); }
-        public void setAvailablePoints(int points) { this.availablePoints = Math.max(0, points); }
-        public void setStrength(int strength) { this.strength = Math.max(1, strength); }
-        public void setDexterity(int dexterity) { this.dexterity = Math.max(1, dexterity); }
-        public void setConstitution(int constitution) { this.constitution = Math.max(1, constitution); }
-        public void setMana(int mana) { this.mana = Math.max(0, Math.min(mana, maxMana)); }
-        public void setMaxMana(int maxMana) {
-            this.maxMana = Math.max(10, maxMana);
-            this.mana = Math.min(mana, maxMana);
-        }
-        public void setPlayerClass(String playerClass) { this.playerClass = playerClass; }
+    public RPGClassManager getClassManager() {
+        return classManager;
     }
 }

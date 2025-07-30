@@ -1,5 +1,7 @@
 package rpg.stats.rpg_stats.commands;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -27,49 +29,58 @@ public class AttributesCommand implements CommandExecutor, TabCompleter {
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender,
+                             @NotNull Command cmd,
+                             @NotNull String label,
+                             String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cEste comando solo lo puede ejecutar un jugador.");
+            sender.sendMessage(Component.text("Este comando solo puede ser ejecutado por jugadores.", NamedTextColor.RED));
             return false;
         }
 
         if (args.length == 0) {
             statsGUI.openStatsMenu(player);
+            progress.showAvailableClasses(player);
             return true;
         }
 
         String attribute = args[0].toLowerCase();
+        AttributeManager attributeManager = progress.getAttributeManager();
 
-        AttributeManager attributeManager = progress.getAttributeManager(); // Ahora debería reconocer getAttributeManager
         if (!attributeManager.isValidAttribute(attribute)) {
-            player.sendMessage("§cInvalid attribute. Available attributes: " +
-                    String.join(", ", attributeManager.getAttributeNames()));
+            player.sendMessage(Component.text("Atributo no válido. Opciones: ", NamedTextColor.RED)
+                    .append(Component.text(String.join(", ", attributeManager.getAttributeNames()), NamedTextColor.YELLOW)));
             return false;
         }
 
         int availablePoints = progress.getAvailablePoints(player);
         if (availablePoints <= 0) {
-            player.sendMessage("§cNo tienes puntos disponibles.");
+            player.sendMessage(Component.text("No tienes puntos disponibles.", NamedTextColor.RED));
             return false;
         }
 
-        if (progress.getAttribute(player, attribute) >= progress.getAttributeManager().getMaxValue(attribute)) {
-            player.sendMessage("§c¡Ya has alcanzado el máximo nivel en este atributo!");
+        int currentValue = progress.getAttribute(player, attribute);
+        int maxValue = attributeManager.getMaxValue(attribute);
+        if (currentValue >= maxValue) {
+            player.sendMessage(Component.text("¡Máximo nivel alcanzado!", NamedTextColor.RED));
             return false;
         }
 
         progress.addAttributePoint(player, attribute);
-        player.sendMessage(String.format(
-                "§a¡Mejorado %s a §6%d§a! Puntos restantes: §e%d",
-                progress.getAttributeManager().getAttributeDisplayName(attribute),
-                progress.getAttribute(player, attribute),
-                progress.getAvailablePoints(player)
-        ));
 
+        player.sendMessage(Component.text()
+                .append(Component.text("Atributo mejorado: ", NamedTextColor.GREEN))
+                .append(Component.text(attributeManager.getAttributeDisplayName(attribute), NamedTextColor.YELLOW))
+                .append(Component.text(" (Nivel ", NamedTextColor.GREEN))
+                .append(Component.text(currentValue + 1, NamedTextColor.GOLD))
+                .append(Component.text(")", NamedTextColor.GREEN)));
+
+        // Llamada actualizada al método renombrado
+        progress.refreshPlayerDisplay(player);
         statsGUI.openStatsMenu(player);
+
         return true;
     }
-
     @Nullable
     @Override
     public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {

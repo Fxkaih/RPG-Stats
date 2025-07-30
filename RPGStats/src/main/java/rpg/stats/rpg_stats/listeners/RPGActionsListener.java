@@ -1,6 +1,9 @@
 package rpg.stats.rpg_stats.listeners;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -13,9 +16,12 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import rpg.stats.rpg_stats.managers.PlayerProgress;
 
+
 public class RPGActionsListener implements Listener {
     private final PlayerProgress progress;
     private final JavaPlugin plugin;
+    private final FileConfiguration config; // Añade esta línea
+
 
     public RPGActionsListener(PlayerProgress progress, JavaPlugin plugin) {
         if (progress == null || plugin == null) {
@@ -23,6 +29,7 @@ public class RPGActionsListener implements Listener {
         }
         this.progress = progress;
         this.plugin = plugin;
+        this.config = plugin.getConfig();
     }
 
     @EventHandler
@@ -32,10 +39,11 @@ public class RPGActionsListener implements Listener {
         progress.applyAllAttributeEffects(player);
     }
 
+
     private float calculateXpForEntity(Entity entity) {
         String configPath = "xp-settings.combat.base-xp." + entity.getType();
-        if (progress.getConfig().contains(configPath)) {
-            return (float) progress.getConfig().getDouble(configPath);
+        if (config.contains(configPath)){
+            return (float) config.getDouble(configPath);
         }
         // Valores por defecto si no hay configuración
         return switch (entity.getType()) {
@@ -60,30 +68,35 @@ public class RPGActionsListener implements Listener {
         ItemStack weapon = killer.getInventory().getItemInMainHand();
         xp = applyWeaponMultiplier(weapon, xp);
 
-        progress.addXP(killer, "COMBAT", xp);
+        progress.addXP(killer, "combat", xp);
+        killer.sendActionBar(
+                Component.text("+" + xp + " XP (Combate)")
+                        .color(NamedTextColor.GREEN)
+        );
+        progress.regenerateMana(killer, 2);
     }
 
     private float applyWeaponMultiplier(ItemStack weapon, float baseXp) {
-        if (weapon == null || weapon.getType() == Material.AIR) {
+        String weaponName = weapon.getType().name();
+        String configPath = "xp-settings.combat.weapon-multipliers.";
+        if (weapon.getType() == Material.AIR) {
             return baseXp * 0.5f; // Reducción si no usa arma
         }
 
-        String weaponName = weapon.getType().name();
-        String configPath = "xp-settings.combat.weapon-multipliers.";
 
         // Multiplicadores configurables
-        if (weaponName.contains("NETHERITE") && progress.getConfig().contains(configPath + "NETHERITE")) {
-            return baseXp * (float) progress.getConfig().getDouble(configPath + "NETHERITE");
-        } else if (weaponName.contains("DIAMOND") && progress.getConfig().contains(configPath + "DIAMOND")) {
-            return baseXp * (float) progress.getConfig().getDouble(configPath + "DIAMOND");
-        } else if (weaponName.contains("IRON") && progress.getConfig().contains(configPath + "IRON")) {
-            return baseXp * (float) progress.getConfig().getDouble(configPath + "IRON");
-        } else if (weaponName.contains("GOLD") && progress.getConfig().contains(configPath + "GOLD")) {
-            return baseXp * (float) progress.getConfig().getDouble(configPath + "GOLD");
-        } else if (weaponName.contains("STONE") && progress.getConfig().contains(configPath + "STONE")) {
-            return baseXp * (float) progress.getConfig().getDouble(configPath + "STONE");
-        } else if (weaponName.contains("WOODEN") && progress.getConfig().contains(configPath + "WOODEN")) {
-            return baseXp * (float) progress.getConfig().getDouble(configPath + "WOODEN");
+        if (weaponName.contains("NETHERITE") && config.contains(configPath + "NETHERITE")) {
+            return baseXp * (float) config.getDouble(configPath + "NETHERITE");
+        } else if (weaponName.contains("DIAMOND") && config.contains(configPath + "DIAMOND")) {
+            return baseXp * (float) config.getDouble(configPath + "DIAMOND");
+        } else if (weaponName.contains("IRON") && config.contains(configPath + "IRON")) {
+            return baseXp * (float) config.getDouble(configPath + "IRON");
+        } else if (weaponName.contains("GOLD") && config.contains(configPath + "GOLD")) {
+            return baseXp * (float) config.getDouble(configPath + "GOLD");
+        } else if (weaponName.contains("STONE") && config.contains(configPath + "STONE")) {
+            return baseXp * (float) config.getDouble(configPath + "STONE");
+        } else if (weaponName.contains("WOODEN") && config.contains(configPath + "WOODEN")) {
+            return baseXp * (float) config.getDouble(configPath + "WOODEN");
         }
 
         return baseXp; // Sin multiplicador si no coincide
@@ -94,19 +107,19 @@ public class RPGActionsListener implements Listener {
         Player player = event.getPlayer();
         Material blockType = event.getBlock().getType();
         ItemStack tool = player.getInventory().getItemInMainHand();
-
+        progress.regenerateMana(player, 1);
 
         if (isCorrectToolForBlock(tool.getType(), blockType)) {
-
-            // Debug
             plugin.getLogger().info("[DEBUG] Jugador " + player.getName() + " rompió " + blockType);
-            if (isCorrectToolForBlock(player.getInventory().getItemInMainHand().getType(), blockType)) {
-                float xp = calculateXpForBlock(blockType);
-                plugin.getLogger().info("[DEBUG] XP calculado: " + xp);
-                xp = applyToolMultiplier(tool, xp);
+            float xp = calculateXpForBlock(blockType);
+            plugin.getLogger().info("[DEBUG] XP calculado: " + xp);
+            xp = applyToolMultiplier(tool, xp);
 
-                progress.addXP(player, "MINING", xp);
-            }
+            progress.addXP(player, "MINING", xp);
+            player.sendActionBar(
+                    Component.text("+" + xp + " XP por minar " + blockType.name().toLowerCase())
+                            .color(NamedTextColor.GREEN)
+            );
         }
     }
 
@@ -124,8 +137,8 @@ public class RPGActionsListener implements Listener {
 
     private float calculateXpForBlock(Material block) {
         String configPath = "xp-settings.mining.block-xp." + block.toString();
-        if (progress.getConfig().contains(configPath)) {
-            return (float) progress.getConfig().getDouble(configPath);
+        if (config.contains(configPath)) {
+            return (float) config.getDouble(configPath);
         }
         // Valores por defecto si no hay configuración
         return switch (block) {
@@ -148,11 +161,4 @@ public class RPGActionsListener implements Listener {
         return baseXp * multiplier;
     }
 
-    private static class FloatWrapper {
-        public final float value;
-
-        public FloatWrapper(float value) {
-            this.value = value;
-        }
-    }
 }

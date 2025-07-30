@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -16,10 +17,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ProgressCommand implements CommandExecutor {
+public class ProgressCommand implements CommandExecutor, TabCompleter {
     private final PlayerProgress progress;
     private final XPDisplay xpDisplay;
-    private final List<String> subCommands = Arrays.asList("ver", "nivel");
+    private static final List<String> SUB_COMMANDS = Arrays.asList("ver", "nivel");
 
     public ProgressCommand(PlayerProgress progress, XPDisplay xpDisplay) {
         this.progress = progress;
@@ -28,13 +29,11 @@ public class ProgressCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {
-        // Comando: /progreso ver (o solo /progreso)
         if (args.length == 0 || (args.length == 1 && args[0].equalsIgnoreCase("ver"))) {
             return showProgress(sender);
         }
 
-        // Comando: /progreso nivel <jugador> <nivel>
-        if (args.length >= 1 && args[0].equalsIgnoreCase("nivel")) {
+        if (args[0].equalsIgnoreCase("nivel")) {
             return handleLevelCommand(sender, args);
         }
 
@@ -72,7 +71,10 @@ public class ProgressCommand implements CommandExecutor {
     }
 
     private boolean handleLevelCommand(CommandSender sender, String[] args) {
-        if (args.length < 3) return false;
+        if (args.length < 3) {
+            sender.sendMessage("Uso: /progreso nivel <jugador> <nivel>");
+            return false;
+        }
 
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
@@ -87,7 +89,6 @@ public class ProgressCommand implements CommandExecutor {
                 return true;
             }
 
-            // Actualizar nivel directamente (evitar addXP para comandos admin)
             progress.setLevel(target, level);
             progress.setXP(target, 0);
             progress.applyAllAttributeEffects(target);
@@ -101,23 +102,25 @@ public class ProgressCommand implements CommandExecutor {
     }
 
     @Nullable
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {
+    @Override
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command,
+                                      @NotNull String alias, @NotNull String @NotNull [] args) {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            for (String subCmd : subCommands) {
+            // Filtra los subcomandos que coincidan con lo que el jugador está escribiendo
+            for (String subCmd : SUB_COMMANDS) {
                 if (subCmd.startsWith(args[0].toLowerCase())) {
                     completions.add(subCmd);
                 }
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("nivel")) {
-            if (sender.hasPermission("rpgstats.admin")) {
-                Bukkit.getOnlinePlayers().forEach(p -> {
-                    if (p.getName().toLowerCase().startsWith(args[1].toLowerCase())) {
-                        completions.add(p.getName());
-                    }
-                });
-            }
+            // Autocompletar nombres de jugadores para el subcomando "nivel"
+            String partialName = args[1].toLowerCase();
+            Bukkit.getOnlinePlayers().stream()
+                    .map(Player::getName)
+                    .filter(name -> name.toLowerCase().startsWith(partialName))
+                    .forEach(completions::add);
         }
 
         return completions.isEmpty() ? null : completions;

@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import rpg.stats.rpg_stats.gui.ConfirmationGUI;
 import rpg.stats.rpg_stats.managers.PlayerProgress;
 
 import java.io.IOException;
@@ -18,44 +19,18 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.util.*;
 
-
 public class AdminCommand implements CommandExecutor, TabCompleter {
     private final PlayerProgress progress;
     private final JavaPlugin plugin;
-    private final Map<String, UUID> pendingResets = new HashMap<>();
-
 
     public AdminCommand(JavaPlugin plugin, PlayerProgress progress) {
-        this.plugin = plugin;
-        this.progress = progress;
-    }
-    private void logAction(@NotNull CommandSender sender, @NotNull String action, @NotNull String target) {
-        String message = String.format(
-                "[Admin Action] %s executed '%s' on %s",
-                sender.getName(),
-                action,
-                target
-        );
-
-        // Log to console
-        plugin.getLogger().info(message);
-
-        // Log to file
-        try {
-            Path path = Path.of(plugin.getDataFolder().getAbsolutePath(), "admin_actions.log");
-            Files.writeString(
-                    path,
-                    LocalDateTime.now() + " - " + message + "\n",
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.APPEND
-            );
-        } catch (IOException e) {
-            plugin.getLogger().warning("Error saving log: " + e.getMessage());
-        }
+        this.plugin = Objects.requireNonNull(plugin);
+        this.progress = Objects.requireNonNull(progress);
     }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd,
+                             @NotNull String label, @NotNull String @NotNull [] args) {
         if (!sender.hasPermission("rpgstats.admin")) {
             sender.sendMessage("§cNo tienes permiso para usar este comando.");
             return true;
@@ -70,86 +45,22 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             case "reload":
                 handleReload(sender);
                 break;
-
             case "setlevel":
                 handleSetLevel(sender, args);
                 break;
-
             case "setxp":
                 handleSetXP(sender, args);
                 break;
-
             case "setstats":
                 handleSetStats(sender, args);
                 break;
-
             case "reset":
                 handleReset(sender, args);
                 break;
-
-            case "confirmreset":
-                handleConfirmReset(sender, args);
-                break;
-
             default:
                 sendHelp(sender);
         }
         return true;
-    }
-
-    private void handleConfirmReset(@NotNull CommandSender sender, @NotNull String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage("§cUso: /rpgadmin confirmreset <jugador>");
-            return;
-        }
-
-        UUID targetUUID = pendingResets.get(sender.getName());
-        if (targetUUID == null) {
-            sender.sendMessage("§cNo tienes ninguna operación pendiente de confirmar.");
-            return;
-        }
-
-        Player target = Bukkit.getPlayer(targetUUID);
-        if (target == null || !target.getName().equalsIgnoreCase(args[1])) {
-            sender.sendMessage("§cConfirmación inválida.");
-            return;
-        }
-
-        // Replace with actual reset implementation
-        progress.setLevel(target, 1);
-        progress.setXP(target, 0);
-        progress.setAttribute(target, "fuerza", 0);
-        progress.setAttribute(target, "destreza", 0);
-        progress.setAttribute(target, "constitucion", 0);
-
-        logAction(sender, "confirmreset", target.getName());
-        sender.sendMessage("§aDatos RPG de " + target.getName() + " reseteados completamente.");
-        target.sendMessage("§eTus estadísticas RPG han sido reseteadas por un admin.");
-
-        pendingResets.remove(sender.getName());
-    }
-
-    private void handleReset(@NotNull CommandSender sender, @NotNull String[] args) {
-        if (args.length < 2) {
-            sender.sendMessage("§cUso: /rpgadmin reset <jugador>");
-            return;
-        }
-
-        Player target = Bukkit.getPlayer(args[1]);
-        if (target == null) {
-            sender.sendMessage("§cJugador no encontrado.");
-            return;
-        }
-
-        if (target.hasPermission("rpgstats.admin")) {
-            sender.sendMessage("§cNo puedes resetear a otro admin.");
-            return;
-        }
-
-        pendingResets.put(sender.getName(), target.getUniqueId());
-        sender.sendMessage("§e¿Seguro que quieres resetear a " + target.getName() + "?");
-        sender.sendMessage("§eConfirma con: §6/rpgadmin confirmreset " + target.getName());
-        logAction(sender, "reset_pending", target.getName());
     }
 
     private void handleReload(@NotNull CommandSender sender) {
@@ -159,7 +70,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
         logAction(sender, "reload", "config");
     }
 
-    private void handleSetLevel(CommandSender sender, String[] args) {
+    private void handleSetLevel(@NotNull CommandSender sender, @NotNull String[] args) {
         if (args.length < 3) {
             sender.sendMessage("§cUso: /rpgadmin setlevel <jugador> <nivel>");
             return;
@@ -176,12 +87,13 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             progress.setLevel(target, level);
             sender.sendMessage(String.format("§aNivel de %s establecido a %d", target.getName(), level));
             target.sendMessage(String.format("§eUn admin ha establecido tu nivel a §6%d", level));
+            logAction(sender, "setlevel", target.getName() + " a " + level);
         } catch (NumberFormatException e) {
             sender.sendMessage("§cEl nivel debe ser un número válido.");
         }
     }
 
-    private void handleSetXP(CommandSender sender, String[] args) {
+    private void handleSetXP(@NotNull CommandSender sender, @NotNull String[] args) {
         if (args.length < 3) {
             sender.sendMessage("§cUso: /rpgadmin setxp <jugador> <xp>");
             return;
@@ -198,12 +110,13 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
             progress.setXP(target, xp);
             sender.sendMessage(String.format("§aXP de %s establecido a %.1f", target.getName(), xp));
             target.sendMessage(String.format("§eUn admin ha establecido tu XP a §6%.1f", xp));
+            logAction(sender, "setxp", target.getName() + " a " + xp);
         } catch (NumberFormatException e) {
             sender.sendMessage("§cEl XP debe ser un número válido.");
         }
     }
 
-    private void handleSetStats(CommandSender sender, String[] args) {
+    private void handleSetStats(@NotNull CommandSender sender, @NotNull String[] args) {
         if (args.length < 4) {
             sender.sendMessage("§cUso: /rpgadmin setstats <jugador> <atributo> <valor>");
             sender.sendMessage("§cAtributos disponibles: fuerza, destreza, constitucion");
@@ -224,15 +137,70 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
         try {
             int value = Integer.parseInt(args[3]);
-            progress.setAttribute(target, attribute, value);
+            progress.setAttribute(target, attribute, value, false);
+            progress.setAvailablePoints(target, 0);
             sender.sendMessage(String.format("§a%s de %s establecido a %d", attribute, target.getName(), value));
             target.sendMessage(String.format("§eUn admin ha establecido tu %s a §6%d", attribute, value));
+            logAction(sender, "setstats", target.getName() + " " + attribute + " a " + value);
         } catch (NumberFormatException e) {
             sender.sendMessage("§cEl valor debe ser un número entero.");
         }
     }
 
-    private void sendHelp(CommandSender sender) {
+    private void handleReset(@NotNull CommandSender sender, @NotNull String[] args) {
+        if (!(sender instanceof Player admin)) {
+            sender.sendMessage("§cEste comando solo puede usarse en el juego para la GUI");
+            return;
+        }
+
+        if (args.length < 2) {
+            sender.sendMessage("§cUso: /rpgadmin reset <jugador>");
+            return;
+        }
+
+        Player target = Bukkit.getPlayer(args[1]);
+        if (target == null) {
+            sender.sendMessage("§cJugador no encontrado.");
+            return;
+        }
+
+        if (target.hasPermission("rpgstats.admin")) {
+            sender.sendMessage("§cNo puedes resetear a otro admin.");
+            return;
+        }
+
+        new ConfirmationGUI(
+                "Resetear a " + target.getName() + "?",
+                confirmed -> {
+                    if (confirmed) {
+                        progress.resetPlayerStats(target);
+                        admin.sendMessage("§aStats de " + target.getName() + " reseteadas");
+                        target.sendMessage("§eTus stats fueron reseteadas por un admin");
+                        logAction(admin, "reset", target.getName());
+                    } else {
+                        admin.sendMessage("§cOperación cancelada");
+                    }
+                },
+                plugin
+        ).open(admin);
+    }
+
+    private void logAction(@NotNull CommandSender sender, @NotNull String action, @NotNull String target) {
+        String message = String.format("[Admin Action] %s executed '%s' on %s",
+                sender.getName(), action, target);
+
+        plugin.getLogger().info(message);
+
+        try {
+            Path path = Path.of(plugin.getDataFolder().getAbsolutePath(), "admin_actions.log");
+            Files.writeString(path, LocalDateTime.now() + " - " + message + "\n",
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        } catch (IOException e) {
+            plugin.getLogger().warning("Error saving log: " + e.getMessage());
+        }
+    }
+
+    private void sendHelp(@NotNull CommandSender sender) {
         sender.sendMessage("§6=== RPGAdmin Comandos ===");
         sender.sendMessage("§e/rpgadmin reload §7- Recarga la configuración");
         sender.sendMessage("§e/rpgadmin setlevel <jugador> <nivel> §7- Establece nivel");
@@ -243,13 +211,14 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
     @Nullable
     @Override
-    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, String[] args) {
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd,
+                                      @NotNull String label, String @NotNull [] args) {
         if (!sender.hasPermission("rpgstats.admin")) return null;
 
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            completions.addAll(Arrays.asList("reload", "setlevel", "setxp", "setstats", "reset", "confirmreset"));
+            completions.addAll(Arrays.asList("reload", "setlevel", "setxp", "setstats", "reset"));
         } else if (args.length == 2 && !args[0].equalsIgnoreCase("reload")) {
             Bukkit.getOnlinePlayers().forEach(p -> completions.add(p.getName()));
         } else if (args.length == 3 && args[0].equalsIgnoreCase("setstats")) {

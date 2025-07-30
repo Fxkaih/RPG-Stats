@@ -1,39 +1,47 @@
 name: RPGStats
-version: 1.0.31
+version: 1.0.38
 main: rpg.stats.rpg_stats.Main
 api-version: "1.20"
 author: Fukaih
 description: Sistema de progresión RPG unificado con atributos y XP global
 
+# Comandos
 commands:
-  stats:
-    description: "Abre el menú de gestión de atributos"
-    usage: "/stats"
-    aliases: [atributos]
-  progreso:
-    description: "Muestra tu progreso RPG"
-    usage: "/progreso [ver|nivel]"
-  rpgadmin:
-    description: "Comandos administrativos de RPG"
-    usage: "/rpgadmin [reload|reset|setstats]"
-    permission: rpgstats.admin
   habilidad:
-    description: Activa una habilidad especial
-    usage: /habilidad <nombreHabilidad>
-    permission: rpgstats.abilities.use
-    permission-message: "No tienes permiso para usar habilidades"
+    description: Activa o muestra habilidades
+    usage: /habilidad [habilidad]
+  rpgadmin:
+    description: Comandos administrativos
+    usage: /rpgadmin [reload|setlevel|setxp|reset]
+    permission: rpgstats.admin
+  atributos:
+    description: Gestiona tus atributos
+    usage: /atributos [atributo]
+  classinfo:
+    description: Muestra información de clases
+    usage: /classinfo [clase]
+  progreso:
+    description: Muestra tu progreso
+    usage: /progreso [ver|nivel]
 
+# Permisos
 permissions:
   rpgstats.atributos:
     description: Permite usar el comando de atributos
     default: true
+
   rpgstats.admin:
     description: Permisos administrativos
     default: op
+
   rpgstats.ability.*:
     description: Permiso para todas las habilidades
     default: false
+
   rpgstats.ability.fire_strike:
     description: Permiso para usar Golpe de Fuego
     default: true
 
+  rpgstats.reset:
+    description: Permite reiniciar las estadísticas RPG
+    default: op

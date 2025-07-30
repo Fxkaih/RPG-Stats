@@ -6,23 +6,22 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import rpg.stats.rpg_stats.managers.AbilityManager;
-import java.util.Map;
+import java.util.Objects;
+
 public class AbilityCommand implements CommandExecutor {
     private final AbilityManager abilityManager;
 
     public AbilityCommand(AbilityManager abilityManager) {
-        this.abilityManager = abilityManager;
+        this.abilityManager = Objects.requireNonNull(abilityManager, "AbilityManager no puede ser nulo");
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd,
                              @NotNull String label, @NotNull String[] args) {
-        if (!(sender instanceof Player)) {
+        if (!(sender instanceof Player player)) {
             sender.sendMessage("§cSolo jugadores pueden usar este comando");
             return true;
         }
-
-        Player player = (Player) sender; // Corrección: Convertir sender a Player
 
         if (args.length == 0) {
             listAvailableAbilities(player);
@@ -33,23 +32,19 @@ public class AbilityCommand implements CommandExecutor {
         handleAbilityActivation(player, abilityId);
         return true;
     }
+
     private void listAvailableAbilities(Player player) {
         player.sendMessage("§6=== Habilidades Disponibles ===");
-
-        // Obtener todas las habilidades del manager
-        Map<String, AbilityManager.Ability> abilities = abilityManager.getAbilitiesMap();
-
-        for (Map.Entry<String, AbilityManager.Ability> entry : abilities.entrySet()) {
-            AbilityManager.Ability ability = entry.getValue();
-            if (abilityManager.checkAbilityCondition(player, entry.getKey())) {
+        abilityManager.getAbilitiesMap().forEach((id, ability) -> {
+            if (abilityManager.checkAbilityCondition(player, id)) {
                 player.sendMessage(String.format(
                         "§a- %s §7(/habilidad %s) §8(Nivel %d)",
                         ability.getName(),
-                        entry.getKey(),
+                        id,
                         ability.getRequiredLevel()
                 ));
             }
-        }
+        });
     }
 
     private void handleAbilityActivation(Player player, String abilityId) {
