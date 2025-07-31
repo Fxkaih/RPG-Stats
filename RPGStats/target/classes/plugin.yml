@@ -1,5 +1,5 @@
 name: RPGStats
-version: 1.0.38
+version: 1.0.55
 main: rpg.stats.rpg_stats.Main
 api-version: "1.20"
 author: Fukaih
@@ -17,6 +17,7 @@ commands:
   atributos:
     description: Gestiona tus atributos
     usage: /atributos [atributo]
+    aliasses: attribute
   classinfo:
     description: Muestra información de clases
     usage: /classinfo [clase]

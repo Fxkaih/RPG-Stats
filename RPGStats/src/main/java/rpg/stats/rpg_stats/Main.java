@@ -8,6 +8,8 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import rpg.stats.rpg_stats.commands.*;
 import rpg.stats.rpg_stats.gui.StatsGUI;
+import rpg.stats.rpg_stats.listeners.GUIListener;
+import rpg.stats.rpg_stats.listeners.RPGActionsListener;
 import rpg.stats.rpg_stats.managers.*;
 
 import java.util.LinkedHashMap;
@@ -20,6 +22,7 @@ public class Main extends JavaPlugin {
     private StatsGUI statsGUI;
     private RPGClassManager classManager;
 
+
     @Override
     public void onEnable() {
         saveDefaultConfig();
@@ -27,15 +30,19 @@ public class Main extends JavaPlugin {
         FileConfiguration config = getConfig();
 
         // Inicialización de managers en orden correcto
-        this.xpDisplay = new XPDisplay(this);
+        this.xpDisplay = new XPDisplay();
         this.playerProgress = new PlayerProgress(this, config, xpDisplay);
         this.abilityManager = new AbilityManager(config, playerProgress, this);
         this.statsGUI = new StatsGUI(playerProgress, this);
         this.classManager = new RPGClassManager(config); // Pasar la configuración correctamente
 
+        xpDisplay.setPlayerProgress(playerProgress);
         playerProgress.setXpDisplay(xpDisplay);
 
         // Registro de eventos
+        Bukkit.getPluginManager().registerEvents(new GUIListener(statsGUI), this);
+        Bukkit.getPluginManager().registerEvents(statsGUI, this);
+        Bukkit.getPluginManager().registerEvents(new RPGActionsListener(playerProgress, xpDisplay,this), this);
         Bukkit.getPluginManager().registerEvents(new DataSaveListener(playerProgress), this);
         Bukkit.getPluginManager().registerEvents(new PlayerListener(playerProgress, abilityManager), this);
 
@@ -102,9 +109,10 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        xpDisplay.cleanup();
         Bukkit.getOnlinePlayers().forEach(playerProgress::savePlayerData);
     }
-}
+
 
 // Listeners se mantienen igual
 record DataSaveListener(PlayerProgress playerProgress) implements org.bukkit.event.Listener {
@@ -120,4 +128,5 @@ record PlayerListener(PlayerProgress playerProgress, AbilityManager abilityManag
         Player player = event.getPlayer();
         playerProgress.loadPlayerData(player);
     }
+}
 }

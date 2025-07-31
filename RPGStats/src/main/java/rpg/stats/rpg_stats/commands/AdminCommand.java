@@ -65,7 +65,7 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
     private void handleReload(@NotNull CommandSender sender) {
         plugin.reloadConfig();
-        progress.reloadConfig(plugin.getConfig());
+        progress.getAttributeManager().reload(plugin.getConfig());
         sender.sendMessage("§aConfiguración recargada correctamente.");
         logAction(sender, "reload", "config");
     }
@@ -107,7 +107,14 @@ public class AdminCommand implements CommandExecutor, TabCompleter {
 
         try {
             float xp = Float.parseFloat(args[2]);
-            progress.setXP(target, xp);
+            float currentXP = progress.getCurrentXP(target);
+
+            if (xp > currentXP) {
+                progress.addXP(target, "admin-command", xp - currentXP);
+            } else {
+                progress.setXP(target, xp);
+            }
+
             sender.sendMessage(String.format("§aXP de %s establecido a %.1f", target.getName(), xp));
             target.sendMessage(String.format("§eUn admin ha establecido tu XP a §6%.1f", xp));
             logAction(sender, "setxp", target.getName() + " a " + xp);

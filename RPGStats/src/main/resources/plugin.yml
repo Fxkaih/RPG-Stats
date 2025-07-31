@@ -17,6 +17,7 @@ commands:
   atributos:
     description: Gestiona tus atributos
     usage: /atributos [atributo]
+    aliasses: attribute
   classinfo:
     description: Muestra información de clases
     usage: /classinfo [clase]

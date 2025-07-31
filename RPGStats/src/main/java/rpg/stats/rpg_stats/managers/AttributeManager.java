@@ -21,10 +21,10 @@ public class AttributeManager {
     }
 
     public void reload(@NotNull FileConfiguration newConfig) {
+        Objects.requireNonNull(newConfig, "La configuración no puede ser nula");
         this.attributes.clear();
         loadAttributes(newConfig);
-        originalValues.clear();
-        plugin.getLogger().info("AttributeManager recargado con éxito");
+        plugin.getLogger().info("Atributos recargados correctamente");
     }
 
     private void loadAttributes(FileConfiguration config) {
@@ -40,6 +40,77 @@ public class AttributeManager {
                 attributes.put(key.toLowerCase(), new AttributeConfig(attrSection));
             }
         }
+    }
+
+    public String getAttributeBonusInfo(String attribute, int value) {
+        AttributeConfig config = getAttributeConfig(attribute.toLowerCase());
+        if (config == null) return "";
+
+        // Obtener fórmulas desde la configuración
+        Map<String, String> bonusFormulas = config.getBonusFormulas();
+
+        // Si hay fórmulas definidas en config.yml, usarlas
+        if (!bonusFormulas.isEmpty()) {
+            return formatDynamicBonuses(bonusFormulas, value);
+        }
+
+        // Sistema de respaldo para atributos conocidos
+        return getDefaultBonusInfo(attribute.toLowerCase(), value);
+
+    }
+    private String formatDynamicBonuses(Map<String, String> formulas, int value) {
+        StringBuilder bonuses = new StringBuilder();
+        formulas.forEach((description, formula) -> {
+            try {
+                double result = evaluateFormula(formula, value);
+                bonuses.append(String.format("%s: %.1f\n", description, result));
+            } catch (Exception e) {
+                plugin.getLogger().warning("Error en fórmula '" + description +
+                        "': " + formula + " - " + e.getMessage());
+            }
+        });
+        return bonuses.toString().trim();
+    }
+
+    private double evaluateFormula(String formula, int value) throws IllegalArgumentException {
+        // Reemplazar el valor y quitar espacios
+        String expr = formula.replace("value", String.valueOf(value)).replace(" ", "");
+
+        // Implementación básica de evaluador (puedes mejorarla)
+        if (expr.contains("*")) {
+            String[] parts = expr.split("\\*");
+            return Double.parseDouble(parts[0]) * Double.parseDouble(parts[1]);
+        }
+        if (expr.contains("+")) {
+            String[] parts = expr.split("\\+");
+            return Double.parseDouble(parts[0]) + Double.parseDouble(parts[1]);
+        }
+        if (expr.contains("-")) {
+            String[] parts = expr.split("-");
+            return Double.parseDouble(parts[0]) - Double.parseDouble(parts[1]);
+        }
+        if (expr.contains("/")) {
+            String[] parts = expr.split("/");
+            return Double.parseDouble(parts[0]) / Double.parseDouble(parts[1]);
+        }
+
+        // Si no hay operador, asumir que es un valor directo
+        return Double.parseDouble(expr);
+    }
+
+    private String getDefaultBonusInfo(String attribute, int value) {
+        // Mantener el sistema actual como respaldo
+        return switch (attribute) {
+            case "inteligencia" -> String.format("Maná: +%.1f regen, +%.1f%% poder mágico",
+                    value * 0.5, value * 8.0);
+            case "sabiduria" -> String.format("Maná: +%d, Reducción cooldown: %.1f%%",
+                    value * 2, Math.min(50, value * 1.0));
+            case "precision" -> String.format("Crítico: %.1f%%, Daño a distancia: +%.1f%%",
+                    Math.min(50, value * 1.0), value * 4.0);
+            case "agilidad" -> String.format("Velocidad ataque: +%.1f%%, Esquive: %.1f%%",
+                    value * 1.0, Math.min(25, value * 0.5));
+            default -> "";
+        };
     }
 
     public boolean isValidAttribute(String name) {
@@ -65,11 +136,20 @@ public class AttributeManager {
     }
 
     public void applyAttributeEffects(@NotNull Player player, @NotNull String attributeName, int value) {
-        AttributeConfig config = getAttributeConfig(attributeName);
-        if (config == null) {
-            plugin.getLogger().warning("Intento de aplicar efectos para atributo no encontrado: " + attributeName);
-            return;
-        }
+                    String normalizedName = attributeName.toLowerCase();
+                    /*.replace("strength", "fuerza")
+                    .replace("dexterity", "destreza")
+                    .replace("constitution", "constitucion")
+                    .replace("intelligence", "inteligencia")
+                    .replace("wisdom", "sabiduria")
+                    .replace("precision", "precision")
+                    .replace("agility", "agilidad"); */
+
+            AttributeConfig config = getAttributeConfig(normalizedName);
+            if (config == null) {
+                plugin.getLogger().warning("Atributo '" + normalizedName + "' no encontrado. ¿Está definido en config.yml?");
+                return;
+            }
 
         saveOriginalValues(player);
         clearAttributeEffects(player, attributeName);
@@ -163,13 +243,42 @@ public class AttributeManager {
 
     public void cleanUpPlayer(@NotNull Player player) {
         originalValues.remove(player.getUniqueId());
+
+        // Limpiar metadatos de atributos
+        for (String metaKey : Arrays.asList(
+                "mana_regen_bonus",
+                "spell_power",
+                "max_mana_bonus",
+                "cooldown_reduction",
+                "critical_chance",
+                "ranged_damage",
+                "dodge_chance"
+        )) {
+            player.removeMetadata(metaKey, plugin);
+        }
     }
 
-    // Método para que PlayerProgress pueda limpiar los efectos
+    /**
+     * Reinicia todos los efectos de atributos para un jugador
+     * @param player Jugador a resetear
+     */
     public void resetPlayerAttributes(@NotNull Player player) {
+        // Limpiar efectos de todos los atributos conocidos
         for (String attribute : attributes.keySet()) {
             clearAttributeEffects(player, attribute);
         }
         cleanUpPlayer(player);
+
+        // Restaurar valores base
+        try {
+            Objects.requireNonNull(player.getAttribute(Attribute.ATTACK_DAMAGE)).setBaseValue(1.0);
+            Objects.requireNonNull(player.getAttribute(Attribute.ATTACK_SPEED)).setBaseValue(4.0);
+            player.setWalkSpeed(0.2f);
+            if (player.getAttribute(Attribute.MAX_HEALTH) != null) {
+                Objects.requireNonNull(player.getAttribute(Attribute.MAX_HEALTH)).setBaseValue(20.0);
+            }
+        } catch (NullPointerException e) {
+            plugin.getLogger().warning("Error al resetear atributos para " + player.getName());
+        }
     }
 }

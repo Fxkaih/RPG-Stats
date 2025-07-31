@@ -4,6 +4,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.metadata.FixedMetadataValue;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
@@ -12,11 +14,13 @@ public class AttributeEffect {
     private final String effectType;
     private final double multiplier;
     private final Double maxBonus;
+    private final  Plugin plugin;
 
     public AttributeEffect(ConfigurationSection config) {
         this.effectType = config.getString("type", "").toUpperCase();
         this.multiplier = config.getDouble("multiplier", 1.0);
         this.maxBonus = config.isDouble("max-bonus") ? config.getDouble("max-bonus") : null;
+        this.plugin =  Bukkit.getPluginManager().getPlugin("RPG_Stats");
     }
 
     public String getEffectType() {
@@ -74,8 +78,11 @@ public class AttributeEffect {
     }
 
     private void storePlayerAttributeEffect(@NotNull Player player, String effectKey, double value) {
-        player.setMetadata(effectKey, new org.bukkit.metadata.FixedMetadataValue(
-                Bukkit.getPluginManager().getPlugin("RPG_Stats"), value));
+        Plugin plugin = Bukkit.getPluginManager().getPlugin("RPG_Stats");
+        if (plugin == null) {
+            throw new IllegalStateException("Plugin RPG_Stats no encontrado");
+        }
+        player.setMetadata(effectKey, new FixedMetadataValue(plugin, value));
     }
 
     private void applyDamageBonus(@NotNull Player player, int attributeValue) {
@@ -128,7 +135,6 @@ public class AttributeEffect {
     }
 
     private void logAttributeError(@NotNull Player player, String attributeType) {
-        player.sendMessage("§cError al aplicar efecto de atributo: " + attributeType);
-        Bukkit.getLogger().warning("Error al aplicar atributo " + attributeType + " a " + player.getName());
+        plugin.getLogger().warning("Error al aplicar atributo " + attributeType + " a " + player.getName());
     }
 }

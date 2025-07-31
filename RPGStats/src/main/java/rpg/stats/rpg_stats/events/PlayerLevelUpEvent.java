@@ -14,14 +14,19 @@ public class PlayerLevelUpEvent extends Event {
     private final int newLevel;
     private final int pointsGained;
     private final int manaIncreased;
+    private final float currentXP;
+    private final float xpToNextLevel;
 
     public PlayerLevelUpEvent(@NotNull Player player, int oldLevel,
-                              int newLevel, int pointsGained, int manaIncrease) {
+                              int newLevel, int pointsGained, int manaIncrease,
+                              float currentXP, float xpToNextLevel) {
         this.player = Objects.requireNonNull(player);
         this.oldLevel = oldLevel;
         this.newLevel = newLevel;
         this.pointsGained = pointsGained;
         this.manaIncreased = manaIncrease;
+        this.currentXP = currentXP;
+        this.xpToNextLevel = xpToNextLevel;
     }
 
     @NotNull
@@ -34,6 +39,18 @@ public class PlayerLevelUpEvent extends Event {
     public int getPointsGained() { return pointsGained; }
 
     public int getManaIncreased() { return manaIncreased; }
+
+    public float getCurrentXP() { return currentXP; }
+
+    public float getXpToNextLevel() { return xpToNextLevel; }
+
+    public boolean isMilestoneLevel() {
+        return newLevel % 5 == 0;
+    }
+
+    public int getLevelsGained() {
+        return newLevel - oldLevel;
+    }
 
     @NotNull
     public static HandlerList getHandlerList() { return handlers; }

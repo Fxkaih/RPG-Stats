@@ -6,7 +6,7 @@
 
   <groupId>rpg.stats</groupId>
   <artifactId>RPGStats</artifactId>
-  <version>1.0.41</version>
+  <version>1.0.55</version>
   <packaging>jar</packaging>
 
   <name>RPGStats</name>

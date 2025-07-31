@@ -17,7 +17,7 @@ public class AbilityCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd,
-                             @NotNull String label, @NotNull String[] args) {
+                             @NotNull String label, @NotNull String @NotNull [] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage("§cSolo jugadores pueden usar este comando");
             return true;

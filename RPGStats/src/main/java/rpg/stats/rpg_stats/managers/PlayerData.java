@@ -54,8 +54,8 @@ public class PlayerData implements ConfigurationSerializable {
     public int getMaxMana() { return maxMana; }
     public @NotNull String getPlayerClass() { return playerClass; }
 
-    public int getMetadata(String key) {
-        return metadata.getOrDefault(key, 0);
+    public int getMetadata(String key, int defaultValue) {
+        return metadata.getOrDefault(key.toLowerCase(), defaultValue);
     }
 
     public void setMetadata(String key, int value) {
@@ -63,12 +63,12 @@ public class PlayerData implements ConfigurationSerializable {
     }
 
 
-    public boolean hasMetadata(String key) {
-        return metadata.containsKey(key.toLowerCase());
-    }
-
     public Map<String, Integer> getAllMetadata() {
         return new HashMap<>(metadata);
+    }
+
+    public boolean hasMetadata() {
+        return !metadata.isEmpty();
     }
 
     public void setLevel(int level) {
@@ -169,7 +169,8 @@ public class PlayerData implements ConfigurationSerializable {
         data.put("max-mana", maxMana);
         data.put("class", playerClass);
 
-        if (!metadata.isEmpty()) {
+        // Solo incluir metadata si tiene valores
+        if (hasMetadata()) {
             data.put("metadata", new HashMap<>(metadata));
         }
 
@@ -177,26 +178,32 @@ public class PlayerData implements ConfigurationSerializable {
     }
 
     public static PlayerData deserialize(Map<String, Object> data) {
-        PlayerData pd = new PlayerData();
-        pd.level = (int) data.getOrDefault("level", 1);
-        pd.xp = ((Number) data.getOrDefault("xp", 0.0f)).floatValue();
-        pd.availablePoints = (int) data.getOrDefault("available-points", 0);
+        try {
+            PlayerData pd = new PlayerData();
+            pd.level = (int) data.getOrDefault("level", 1);
+            pd.xp = ((Number) data.getOrDefault("xp", 0.0f)).floatValue();
+            pd.availablePoints = (int) data.getOrDefault("available-points", 0);
 
-        Map<String, Object> attrs = (Map<String, Object>) data.getOrDefault("attributes", new HashMap<>());
-        pd.strength = (int) attrs.getOrDefault("strength", 1);
-        pd.dexterity = (int) attrs.getOrDefault("dexterity", 1);
-        pd.constitution = (int) attrs.getOrDefault("constitution", 1);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> attrs = (Map<String, Object>) data.getOrDefault("attributes", new HashMap<>());
+            pd.strength = (int) attrs.getOrDefault("strength", 1);
+            pd.dexterity = (int) attrs.getOrDefault("dexterity", 1);
+            pd.constitution = (int) attrs.getOrDefault("constitution", 1);
 
-        pd.mana = (int) data.getOrDefault("mana", 100);
-        pd.maxMana = (int) data.getOrDefault("max-mana", 100);
-        pd.playerClass = (String) data.getOrDefault("class", "none");
+            pd.mana = (int) data.getOrDefault("mana", 100);
+            pd.maxMana = (int) data.getOrDefault("max-mana", 100);
+            pd.playerClass = (String) data.getOrDefault("class", "none");
 
-        Map<String, Object> meta = (Map<String, Object>) data.getOrDefault("metadata", new HashMap<>());
-        meta.forEach((key, value) -> pd.metadata.put(key, (int) value));
+            @SuppressWarnings("unchecked")
+            Map<String, Object> meta = (Map<String, Object>) data.getOrDefault("metadata", new HashMap<>());
+            meta.forEach((key, value) -> pd.setMetadata(key, (int) value));
 
-        return pd;
+            return pd;
+        } catch (Exception e) {
+            // En caso de error, devolver datos por defecto
+            return new PlayerData();
+        }
     }
-
 
     @Override
     public String toString() {

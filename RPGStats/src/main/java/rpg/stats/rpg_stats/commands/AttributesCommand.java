@@ -32,15 +32,17 @@ public class AttributesCommand implements CommandExecutor, TabCompleter {
     public boolean onCommand(@NotNull CommandSender sender,
                              @NotNull Command cmd,
                              @NotNull String label,
-                             String[] args) {
+                             String @NotNull [] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("Este comando solo puede ser ejecutado por jugadores.", NamedTextColor.RED));
             return false;
         }
 
         if (args.length == 0) {
+
             statsGUI.openStatsMenu(player);
             progress.showAvailableClasses(player);
+            progress.showDetailedStats(player);
             return true;
         }
 

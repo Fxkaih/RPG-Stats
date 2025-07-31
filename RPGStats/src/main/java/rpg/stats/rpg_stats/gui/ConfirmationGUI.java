@@ -11,51 +11,85 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.enchantments.Enchantment;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class ConfirmationGUI implements Listener {
     private final Inventory inventory;
     private final Consumer<Boolean> responseConsumer;
-    private final JavaPlugin plugin;
 
     public ConfirmationGUI(String question, Consumer<Boolean> responseConsumer, JavaPlugin plugin) {
-        this.plugin = plugin;
         this.responseConsumer = responseConsumer;
-        this.inventory = Bukkit.createInventory(null, 9, Component.text("Confirmar: " + question));
+        this.inventory = Bukkit.createInventory(null, 27,
+                Component.text("Confirmar: " + question));
 
-        // Botón de confirmación (verde)
-        ItemStack confirmItem = new ItemStack(Material.LIME_WOOL);
-        ItemMeta confirmMeta = confirmItem.getItemMeta();
-        confirmMeta.displayName(Component.text("Confirmar", NamedTextColor.GREEN));
-        confirmItem.setItemMeta(confirmMeta);
-
-        // Botón de cancelación (rojo)
-        ItemStack cancelItem = new ItemStack(Material.RED_WOOL);
-        ItemMeta cancelMeta = cancelItem.getItemMeta();
-        cancelMeta.displayName(Component.text("Cancelar", NamedTextColor.RED));
-        cancelItem.setItemMeta(cancelMeta);
-
-        // Rellenar el inventario
-        ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta fillerMeta = filler.getItemMeta();
-        fillerMeta.displayName(Component.text(" "));
-        filler.setItemMeta(fillerMeta);
-
-        for (int i = 0; i < 9; i++) {
-            if (i == 3) {
-                inventory.setItem(i, confirmItem);
-            } else if (i == 5) {
-                inventory.setItem(i, cancelItem);
-            } else {
-                inventory.setItem(i, filler);
-            }
+        // Rellenar todo el inventario con paneles
+        ItemStack filler = createFillerItem();
+        for (int i = 0; i < 27; i++) {
+            inventory.setItem(i, filler);
         }
 
-        // Registrar eventos
+        // Botón de confirmación (centrado)
+        ItemStack confirmItem = createConfirmItem();
+        inventory.setItem(11, confirmItem);
+
+        // Botón de cancelación (centrado)
+        ItemStack cancelItem = createCancelItem();
+        inventory.setItem(15, cancelItem);
+
+        // Texto descriptivo
+        ItemStack infoItem = createInfoItem(question);
+        inventory.setItem(13, infoItem);
+
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
+
     }
+    private ItemStack createFillerItem() {
+        ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(" "));
+        item.setItemMeta(meta);
+        return item;
+    }
+    private ItemStack createConfirmItem() {
+        ItemStack item = new ItemStack(Material.LIME_WOOL);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("§aConfirmar"));
+        meta.lore(Arrays.asList(
+                Component.text("§7Click para confirmar la acción"),
+                Component.text("§7Esta acción no se puede deshacer")
+        ));
+        item.setItemMeta(meta);
+        item.addUnsafeEnchantment(Enchantment.LURE, 1);
+        return item;
+    }
+
+    private ItemStack createCancelItem() {
+        ItemStack item = new ItemStack(Material.RED_WOOL);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("§cCancelar"));
+        meta.lore(List.of(
+                Component.text("§7Click para cancelar la acción")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createInfoItem(String question) {
+        ItemStack item = new ItemStack(Material.PAPER);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("§e" + question));
+        meta.lore(Arrays.asList(
+                Component.text("§7¿Estás seguro de que quieres"),
+                Component.text("§7realizar esta acción?")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
 
     public void open(Player player) {
         player.openInventory(inventory);

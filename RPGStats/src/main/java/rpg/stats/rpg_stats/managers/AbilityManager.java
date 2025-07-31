@@ -214,16 +214,15 @@ public class AbilityManager {
         }
 
         private void applyEffectsModern(@NotNull Player player) {
-            effects.forEach((type, amplifier) -> {
-                player.addPotionEffect(new PotionEffect(
+            effects.forEach((type, amplifier) -> player.addPotionEffect(
+                    new PotionEffect(
                         type,
                         20 * 30, // 30 segundos
                         amplifier - 1,
                         true,
                         true,
                         true
-                ));
-            });
+                )));
         }
 
         public @NotNull String getId() { return id; }
